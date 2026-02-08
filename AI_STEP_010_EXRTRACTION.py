@@ -1,4 +1,4 @@
-# ultra_min_jira_analyzer_v4_impact_fix.py
+# ultra_min_jira_analyzer_v3_strict.py
 from __future__ import annotations
 
 import json, time, math
@@ -11,17 +11,16 @@ from pydantic import BaseModel, Field
 # ---- Types ----
 IntentType = Literal["Create", "Modify", "Remove", "Migrate", "Integrate", "Investigate", "Enforce"]
 ValueCategory = Literal["Customer", "Cost", "Risk", "Compliance", "Internal Efficiency"]
-
-# تغییر ۱: حذف "No" از اینجا. اگر تاثیری نباشد، identified باید false باشد.
-# اگر تاثیر باشد اما شدت معلوم نباشد، مقدار null می‌شود.
-ImpactLevel = Literal["Low", "Medium", "High"]
+ImpactLevel = Literal["No", "Low", "Medium", "High"]
 
 # ---- Schema (Strict Enterprise Mode) ----
+# Note: No default values are provided. This forces the model to strictly 
+# populate every field, ensuring no assumptions are made by the code.
 
 class Who(BaseModel):
     identified: bool
     confidence: int = Field(ge=0, le=100)
-    actor: str | None
+    actor: str | None     # Strict: Model must explicitly return null if unknown
     evidence: str | None
 
 class What(BaseModel):
@@ -39,11 +38,7 @@ class Why(BaseModel):
 class CustomerImpact(BaseModel):
     identified: bool
     confidence: int = Field(ge=0, le=100)
-    
-    # تغییر ۲: اضافه کردن | None
-    # این یعنی: یا یکی از مقادیر Low/Medium/High است، یا اگر مدل نتوانست تشخیص دهد، null است.
-    impact_level: ImpactLevel | None 
-    
+    impact_level: ImpactLevel # Strict: Model must choose one, cannot default to "No"
     impact_evidence: str | None
 
 class JiraAnalysis(BaseModel):
@@ -55,8 +50,8 @@ class JiraAnalysis(BaseModel):
 # ---- Config ----
 @dataclass
 class Cfg:
-    model: str = "gpt-4.1" 
-    temperature: float = 0.0
+    model: str = "gpt-4.1"  # Custom enterprise model
+    temperature: float = 0.0  # Strict deterministic behavior
     max_tokens: int = 1000
     timeout: float = 30.0
     retries: int = 2
@@ -69,14 +64,8 @@ SYSTEM = (
     "Extract structured data. If a field is not present in text, return null."
 )
 
-# تغییر ۳: آپدیت پرامپت برای توضیح منطق جدید
 USER_TEMPLATE = """Analyze ONLY the text below.
 Evidence must be an EXACT contiguous snippet. Confidence = integer 0..100.
-
-Rules for 'customer_impact':
-1. If no impact is mentioned: set identified=false, impact_level=null, impact_evidence=null.
-2. If impact is mentioned BUT severity (Low/Medium/High) is NOT specified: set identified=true, impact_evidence="...", impact_level=null.
-3. If impact AND severity are mentioned: set identified=true, impact_evidence="...", impact_level="Low"|"Medium"|"High".
 
 TEXT START <<__PAYLOAD_START__>>
 {t}
@@ -84,6 +73,7 @@ TEXT START <<__PAYLOAD_START__>>
 """
 
 def _mean_logprob(resp: Any) -> Optional[float]:
+    """Calculates mean log probability from the response if available."""
     try:
         lp = resp.choices[0].logprobs
         toks = getattr(lp, "content", None)
@@ -114,7 +104,11 @@ def analyze(text: str, client: Optional[OpenAI] = None, cfg: Cfg = Cfg()) -> Dic
 
     for i in range(cfg.retries + 1):
         try:
+            # ---------------------------------------------------------
             # Attempt 1: Strict Structured Output WITH Logprobs
+            # ---------------------------------------------------------
+            # .parse() automatically enforces the Pydantic schema structure.
+            # By having no defaults in Pydantic, we ensure Strict adherence.
             resp = client.beta.chat.completions.parse(
                 model=cfg.model,
                 temperature=cfg.temperature,
@@ -132,7 +126,9 @@ def analyze(text: str, client: Optional[OpenAI] = None, cfg: Cfg = Cfg()) -> Dic
             return out
 
         except Exception as e:
-            # Fallback: Retry WITHOUT Logprobs
+            # ---------------------------------------------------------
+            # Fallback: Retry WITHOUT Logprobs immediately
+            # ---------------------------------------------------------
             last_err = e
             try:
                 resp = client.beta.chat.completions.parse(
@@ -142,6 +138,7 @@ def analyze(text: str, client: Optional[OpenAI] = None, cfg: Cfg = Cfg()) -> Dic
                     timeout=cfg.timeout,
                     messages=messages,
                     response_format=JiraAnalysis,
+                    # No logprobs
                 )
                 out = resp.choices[0].message.parsed.model_dump()
                 out["generation_confidence"] = None 
@@ -149,20 +146,20 @@ def analyze(text: str, client: Optional[OpenAI] = None, cfg: Cfg = Cfg()) -> Dic
                 
             except Exception as inner_e:
                 last_err = inner_e
+                # Network/Server retry logic
                 if i < cfg.retries:
                     time.sleep(cfg.backoff * (i + 1))
 
     raise last_err or RuntimeError("Analysis failed after retries")
 
 if __name__ == "__main__":
-    # تست سناریوی "تاثیر هست ولی لول مشخص نیست"
     sample = """
-    We need to refactor the payment gateway wrapper.
-    NOTE: This change will definitely impact the checkout latency for end-users, so be careful.
+    As a backend team, we will migrate user authentication to OAuth2 provider.
+    This may affect customer login we dont know how much effect.
     """
     try:
+        # Requires openai >= 1.50.0
         result = analyze(sample)
-        # انتظار داریم: identified=True, evidence="...", impact_level=None (چون نگفته Low/High)
-        print(json.dumps(result["customer_impact"], indent=2, ensure_ascii=False))
+        print(json.dumps(result, indent=2, ensure_ascii=False))
     except Exception as e:
         print(f"Analysis Error: {e}")
