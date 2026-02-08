@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 # ---- Types ----
 IntentType = Literal["Create", "Modify", "Remove", "Migrate", "Integrate", "Investigate", "Enforce"]
 ValueCategory = Literal["Customer", "Cost", "Risk", "Compliance", "Internal Efficiency"]
-ImpactLevel = Literal["No", "Low", "Medium", "High"]
 
 # ---- Schema (Strict Enterprise Mode) ----
 # Note: No default values are provided. This forces the model to strictly 
@@ -38,7 +37,6 @@ class Why(BaseModel):
 class CustomerImpact(BaseModel):
     identified: bool
     confidence: int = Field(ge=0, le=100)
-    impact_level: ImpactLevel # Strict: Model must choose one, cannot default to "No"
     impact_evidence: str | None
 
 class JiraAnalysis(BaseModel):
