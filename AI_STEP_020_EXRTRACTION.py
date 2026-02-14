@@ -9,33 +9,33 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 # ---------------------------------------------------------
 
 class Who(BaseModel):
-    identified: bool
-    evidence: str | None = Field(description="The specific actor or role mentioned")
+    identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
+    evidence: Optional[str] = Field(default=None, description="The exact phrase or role name found (e.g., 'Python Developer', 'Support Team').")
+
 
 class What(BaseModel):
-    identified: bool
-    intent_evidence: str | None = Field(description="The specific action or intent")
+    identified: bool = Field(description="True if an action or intent is clearly defined.")
+    intent_evidence: Optional[str] = Field(default=None, description="The specific action mentioned (e.g., 'migrate database', 'fix login bug').")
 
 class Why(BaseModel):
-    identified: bool
-    value_evidence: str | None = Field(description="The business value or reason")
+    identified: bool = Field(description="True if a business value or reason is provided.")
+    value_evidence: Optional[str] = Field(default=None, description="The reason or benefit mentioned (e.g., 'improve performance').")
 
 class CustomerImpact(BaseModel):
-    identified: bool
-    impact_evidence: str | None = Field(description="Explicit mention of impact on the customer")
+    identified: bool = Field(description="True if there is a direct or indirect mention of customer experience.")
+    impact_evidence: Optional[str] = Field(default=None, description="The specific impact on the customer.")
 
-# --- کلاس جدید اضافه شده ---
 class Technologies(BaseModel):
-    identified: bool
-    tools: List[str] = Field(description="List of specific technologies, languages, databases, or APIs mentioned (e.g. ['Python', 'BigQuery', 'Redis'])")
+    identified: bool = Field(description="True if any technical tools, languages, or frameworks are mentioned.")
+    tools: List[str] = Field(default_factory=list, description="List of extracted technologies (e.g. ['Python', 'AWS']).")
 
-# --- کلاس مادر به‌روزرسانی شده ---
+
 class JiraAnalysis(BaseModel):
     who: Who
     what: What
     why: Why
     customer_impact: CustomerImpact
-    technologies: Technologies  # <--- اضافه شد
+    technologies: Technologies 
 
 # ---------------------------------------------------------
 # 2. Client Setup
@@ -58,9 +58,8 @@ def extract_jira_metadata(jira_description: str) -> JiraAnalysis:
         "You are a strict Jira ticket parser. Analyze the description to extract structured data.\n"
         "RULES:\n"
         "1. Identify Who, What, Why, CustomerImpact, and Technologies used.\n"
-        "2. For 'Technologies', list distinct tools, languages, or frameworks (e.g. Python, AWS, API).\n"
-        "3. If a field is not present, set identified=False and value=null (or empty list).\n"
-        "4. Output strictly valid JSON."
+        "2. If a field is not present, set identified=False and value=null (or empty list).\n"
+        "3. Output strictly valid JSON."
     )
 
     messages = [
@@ -79,22 +78,6 @@ def extract_jira_metadata(jira_description: str) -> JiraAnalysis:
                 '"why": {"identified": true, "value_evidence": "to generate reports"}, '
                 '"customer_impact": {"identified": false, "impact_evidence": null}, '
                 '"technologies": {"identified": true, "tools": ["Python", "BigQuery", "API"]}}'
-            )
-        },
-        
-        # Few-Shot Example 2: No Technologies
-        {
-            "role": "user", 
-            "content": "The login page is slow. Customers are complaining."
-        },
-        {
-            "role": "assistant", 
-            "content": (
-                '{"who": {"identified": false, "evidence": null}, '
-                '"what": {"identified": true, "intent_evidence": "login page is slow"}, '
-                '"why": {"identified": false, "value_evidence": null}, '
-                '"customer_impact": {"identified": true, "impact_evidence": "Customers are complaining"}, '
-                '"technologies": {"identified": false, "tools": []}}'
             )
         },
 
