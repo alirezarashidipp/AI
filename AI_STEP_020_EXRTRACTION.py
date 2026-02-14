@@ -29,9 +29,7 @@ class Who(BaseModel):
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
-    
     category: Optional[ActionCategory] = Field(default=None, description="Classify the intent into the single most relevant category.")
-    
     intent_evidence: Optional[str] = Field(default=None, description="The specific action mentioned (e.g., 'migrate database', 'fix login bug').")
 
 class Why(BaseModel):
