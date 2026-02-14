@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 from openai import OpenAI, LengthFinishReasonError
 from tenacity import retry, stop_after_attempt, wait_exponential
-from enum import Enum 
+from enum import Enum
 
 class ActionCategory(str, Enum):
     MIGRATION = "migration"
@@ -15,7 +15,7 @@ class ActionCategory(str, Enum):
     TESTING = "testing"
     DEPLOYMENT = "deployment"
     RESEARCH = "research"
-    OTHER = "other" 
+    OTHER = "other"
 # ---------------------------------------------------------
 # 1. Schema Definitions (Optimized)
 # ---------------------------------------------------------
@@ -50,18 +50,18 @@ class Technologies(BaseModel):
     def normalize_tools(cls, v):
         if not v:
             return []
-        # Remove duplicates and strip whitespace, keeping original case usually preferred 
+        # Remove duplicates and strip whitespace, keeping original case usually preferred
         # but here we capitalize for consistency (optional)
         return list(set(tool.strip() for tool in v))
 
 class JiraAnalysis(BaseModel):
     # 'reasoning' field forces the model to think first -> Better accuracy
-    reasoning: str = Field(description="Chain-of-thought analysis of the description.") 
+    reasoning: str = Field(description="Chain-of-thought analysis of the description.")
     who: Who
     what: What
     why: Why
     customer_impact: CustomerImpact
-    technologies: Technologies 
+    technologies: Technologies
 
 # ---------------------------------------------------------
 # 2. Client Setup & Safety Checks
@@ -79,7 +79,7 @@ client = OpenAI(api_key=api_key)
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
-    
+
     system_prompt = (
         "You are an expert Jira Analyst. Extract structured metadata from ticket descriptions.\n"
         "STEPS:\n"
@@ -94,39 +94,82 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
     ]
 
     try:
-        completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06", # Use a valid, latest model supporting Structured Outputs
-            messages=messages,
-            temperature=0.0, # Deterministic
-            response_format=JiraAnalysis, 
-        )
+      completion = client.beta.chat.completions.parse(
+        model="gpt-4o-2024-08-06",
+        messages=messages,
+        temperature=0.0,
+        response_format=JiraAnalysis,)
+      
+      if completion.choices[0].message.refusal:
+          print("[MODEL_REFUSAL] Model refused to process the input.")
+          print(f"Reason: {completion.choices[0].message.refusal}")
+          return None
 
-        # Check for refusal (safety filtering)
-        if completion.choices[0].message.refusal:
-            print(f"Model refused to process: {completion.choices[0].message.refusal}")
-            return None
+      return completion.choices[0].message.parsed
 
-        return completion.choices[0].message.parsed
+# --------------------------------------------------
+# Structured Error Classification
+# --------------------------------------------------
 
-    except LengthFinishReasonError:
-        print("Error: Output token limit reached.")
-        return None
+    except LengthFinishReasonError as e:
+      print("[TOKEN_LIMIT_EXCEEDED]")
+      print("Cause: Model output exceeded maximum token limit.")
+      print(f"Details: {repr(e)}")
+      return None
+
+    except ValidationError as e:
+      print("[SCHEMA_VALIDATION_ERROR]")
+      print("Cause: Model response did not match JiraAnalysis schema.")
+      print("Validation details:")
+      print(e.json())
+      return None
+
+    except (APIConnectionError, APITimeoutError) as e:
+      print("[NETWORK_ERROR]")
+      print("Cause: Connection issue or timeout while calling OpenAI API.")
+      print(f"Details: {repr(e)}")
+      raise  # retry
+
+    except RateLimitError as e:
+      print("[RATE_LIMIT_ERROR]")
+      print("Cause: API rate limit exceeded.")
+      print(f"Details: {repr(e)}")
+      raise  # retry
+
+    except InternalServerError as e:
+      print("[OPENAI_SERVER_ERROR]")
+      print("Cause: OpenAI internal server error (5xx).")
+      print(f"Details: {repr(e)}")
+      raise  # retry
+
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        raise # Let tenacity retry handle network blips, or crash if it's a logic error
+      print("[UNEXPECTED_FATAL_ERROR]")
+      print("Cause: Unhandled exception type.")
+      print(f"Exception Type: {type(e).__name__}")
+      print(f"Details: {repr(e)}")
+      raise
 
 # ---------------------------------------------------------
 # Usage Example
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    description = "We need to migrate the Redis cache to AWS ElastiCache to improve Python API performance for our enterprise users."
-    
+    description = (
+        "We need to migrate the Redis cache to AWS ElastiCache "
+        "to improve Python API performance for our enterprise users."
+    )
+
     try:
         result = extract_jira_metadata(description)
-        if result:
-            # Print reasoning to see how the model thought
-            print(f"--- Analysis Logic ---\n{result.reasoning}\n") 
-            print("--- Structured Data ---")
-            print(result.model_dump_json(indent=2))
+
+        if result is None:
+            print("Extraction failed. No structured output returned.")
+            sys.exit(1)
+
+        print(f"--- Analysis Logic ---\n{result.reasoning}\n")
+        print("--- Structured Data ---")
+        print(result.model_dump_json(indent=2))
+
     except Exception as e:
-        print(f"Extraction failed after retries: {e}")
+        print("Extraction failed after retries.")
+        print(f"Fatal error: {type(e).__name__} -> {e}")
+        sys.exit(1)
