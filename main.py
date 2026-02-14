@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 import logging
 
-from extraction import extract_jira_metadata, JiraAnalysis
+from AI_STEP_020_EXRTRACTION import extract_jira_metadata, JiraAnalysis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
