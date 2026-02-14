@@ -5,7 +5,7 @@ from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # ---------------------------------------------------------
-# 1. Schema Definitions (تعریف ساختار داده‌ها)
+# 1. Schema Definitions
 # ---------------------------------------------------------
 
 class Who(BaseModel):
@@ -87,7 +87,7 @@ def extract_jira_metadata(jira_description: str) -> JiraAnalysis:
 
     # 5. API Call
     completion = client.beta.chat.completions.parse(
-        model="gpt-4o", 
+        model="gpt-4.1", 
         messages=messages,
         temperature=0.0,
         response_format=JiraAnalysis, 
@@ -100,10 +100,5 @@ def extract_jira_metadata(jira_description: str) -> JiraAnalysis:
 # ---------------------------------------------------------
 if __name__ == "__main__":
     description = "We need to migrate the Redis cache to AWS ElastiCache to improve Python API performance."
-    
-    try:
-        result = extract_jira_metadata(description)
-        # نمایش خروجی به صورت JSON تمیز
-        print(result.model_dump_json(indent=2))
-    except Exception as e:
-        print(f"Error: {e}")
+    result = extract_jira_metadata(description)
+    print(result.model_dump_json(indent=2))
