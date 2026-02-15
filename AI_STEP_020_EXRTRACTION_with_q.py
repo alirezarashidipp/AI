@@ -95,14 +95,14 @@ class JiraAnalysis(BaseModel):
         max_length=2,
         description="Questions if What and Why are clear.")
 
-@model_validator(mode='after')
-def enforce_questions_logic(self):
-          has_what = self.what.identified and self.what.category != ActionCategory.NOT_FOUND
-          has_why = self.why.identified
-          
-          if not (has_what and has_why):
-              self.grooming_questions = []
-          return self
+    @model_validator(mode='after')
+    def enforce_questions_logic(self):
+              has_what = self.what.identified and self.what.category != ActionCategory.NOT_FOUND
+              has_why = self.why.identified
+              
+              if not (has_what and has_why):
+                  self.grooming_questions = []
+              return self
 # ---------------------------------------------------------
 # 2. Client Setup & Safety Checks
 # ---------------------------------------------------------
