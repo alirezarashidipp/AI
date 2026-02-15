@@ -79,8 +79,7 @@ class Technologies(BaseModel):
         return list(set(str(tool).strip() for tool in v))
 
 class BacklogQuestion(BaseModel):
-    question: str = Field(description="The direct question to ask the ticket reporter.")
-    reasoning: str = Field(description="Why is this question important? (e.g. 'Missing data schemas', 'Ambiguous deadline').")
+    question: str = Field(description="Exactly 2 most critical questions to (most probable questions that developer would ask, or they cant start working on the task, without them)clarify missing information, edge cases, or unstated data requirements.")
 
 
 class JiraAnalysis(BaseModel):
@@ -92,7 +91,6 @@ class JiraAnalysis(BaseModel):
     technologies: Technologies
 
     grooming_questions: List[BacklogQuestion] = Field(
-    description="Exactly 2 most critical questions to clarify missing information, edge cases, or unstated data requirements.",
     max_length=2,
     min_length=2)
   
@@ -190,7 +188,7 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 # Usage Example
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    description = "We need to move Redis to AWS ElastiCache..."
+    description = "We need to move Redis to AWS ElastiCache. the name of service. we should have deploy this quickly."
 
   
     result = extract_jira_metadata(description)
