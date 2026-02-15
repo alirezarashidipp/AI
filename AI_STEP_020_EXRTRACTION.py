@@ -6,19 +6,6 @@ from openai import OpenAI, LengthFinishReasonError
 from tenacity import retry, stop_after_attempt, wait_exponential
 from enum import Enum
 
-class ActionCategory(str, Enum):
-    MIGRATION = "migration"
-    DEBUG = "debug"
-    ENHANCE = "enhance"
-    REFACTOR = "refactor"
-    DOCUMENTATION = "documentation"
-    TESTING = "testing"
-    DEPLOYMENT = "deployment"
-    RESEARCH = "research"
-    OTHER = "other"
-# ---------------------------------------------------------
-# 1. Schema Definitions (Optimized)
-# ---------------------------------------------------------
 class Settings(BaseSettings):
     openai_api_key: str
     model: str = "gpt-4o-2024-08-06"
@@ -31,40 +18,49 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-
-class ExtractionReasoning(BaseModel):
-    analysis: str = Field(description="Briefly analyze the ticket to identify key components before extraction.")
+# ---------------------------------------------------------
+# 1. Schema Definitions (Optimized)
+# ---------------------------------------------------------
+class ActionCategory(str, Enum):
+    MIGRATION = "migration"
+    DEBUG = "debug"
+    ENHANCE = "enhance"
+    REFACTOR = "refactor"
+    DOCUMENTATION = "documentation"
+    TESTING = "testing"
+    DEPLOYMENT = "deployment"
+    RESEARCH = "research"
+    OTHER = "other"
+    NOT_FOUND = "N"  # اضافه کردن N به Enum برای جلوگیری از خطای ولیدیشن
 
 class Who(BaseModel):
     identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
-    evidence: str = Field(default="N", description="The exact phrase found (e.g., 'Python Developer').If no info is found, strictly return 'N'")
+    evidence: str = Field(default="N", description="The exact phrase found. If no info, return 'N'.")
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
-    category: Optional[ActionCategory] = Field(default="N", description="Classify the intent into the single most relevant category.If no info is found, strictly return 'N'")
-    intent_evidence: str = Field(default="N", description="The specific action mentioned (e.g., 'migrate database', 'fix login bug'),If no info is found, strictly return 'N'")
+    # حالا چون "N" در Enum هست، خطا نمی‌دهد
+    category: ActionCategory = Field(default=ActionCategory.NOT_FOUND, description="Classify intent. If no info, return 'N'.")
+    intent_evidence: str = Field(default="N", description="Specific action mentioned. If no info, return 'N'.")
 
 class Why(BaseModel):
     identified: bool = Field(description="True if a business value/reason is provided.")
-    value_evidence: Optional[str] = Field(default="N", description="The reason (e.g., 'improve performance').If no info is found, strictly return 'N'")
+    value_evidence: str = Field(default="N", description="The reason. If no info, return 'N'.")
 
 class CustomerImpact(BaseModel):
     identified: bool = Field(description="True if customer experience is mentioned")
-    impact_evidence: str = Field(default="N", description="Specific impact on the customer. If no info is found, strictly return 'N'")
+    impact_evidence: str = Field(default="N", description="Specific impact. If no info, return 'N'.")
 
 class Technologies(BaseModel):
     identified: bool = Field(description="True if tech tools/languages are mentioned.")
-    tools: List[str] = Field(default_factory=list, description="List of technologies.")
+    tools: List[str] = Field(default_factory=list, description="List of technologies. Empty list if none.")
 
-    # Validator: Clean up technologies (lowercase & remove duplicates)
     @field_validator('tools', mode='before')
     @classmethod
     def normalize_tools(cls, v):
-        if not v:
+        if not v or not isinstance(v, list):
             return []
-        # Remove duplicates and strip whitespace, keeping original case usually preferred
-        # but here we capitalize for consistency (optional)
-        return list(set(tool.strip() for tool in v))
+        return list(set(str(tool).strip() for tool in v))
 
 class JiraAnalysis(BaseModel):
     # 'reasoning' field forces the model to think first -> Better accuracy
