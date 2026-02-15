@@ -79,7 +79,7 @@ class Technologies(BaseModel):
         return list(set(str(tool).strip() for tool in v))
 
 class BacklogQuestion(BaseModel):
-    question: str = Field(description="Exactly 2 most critical questions to (most probable questions that developer would ask, or they cant start working on the task, without them)clarify missing information, edge cases, or unstated data requirements.")
+    question: str = Field(description="A critical question regarding missing data or requirements that the ticket writer FORGOT to include. This must be a blocker question that a developer would absolutely ask before starting work (e.g., missing error codes, undefined edge cases).")
 
 
 class JiraAnalysis(BaseModel):
