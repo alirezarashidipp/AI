@@ -29,7 +29,6 @@ class Settings(BaseSettings):
     max_retries: int = 3
     timeout: float = 30.0
     max_input_chars: int = 15000
-    max_output_tokens: int = 1000
     min_time_retry: int = 2
     max_time_retry: int = 10
 
@@ -49,24 +48,24 @@ class ActionCategory(str, Enum):
     DEPLOYMENT = "deployment"
     RESEARCH = "research"
     OTHER = "other"
-    NOT_FOUND = "N" 
+    NOT_FOUND = "not_found" 
 
 class Who(BaseModel):
     identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
-    evidence: str = Field(default="N", description="The exact phrase found. If no info, return 'N'.")
+    evidence: str = Field(default="not_found", description="The exact phrase found. If no info, return 'N'.")
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
     category: ActionCategory = Field(default=ActionCategory.NOT_FOUND, description="Classify main intent of jira. If no info, return 'N'.")
-    intent_evidence: str = Field(default="N", description="Specific action mentioned. If no info, return 'N'.")
+    intent_evidence: str = Field(default="not_found", description="Specific action mentioned. If no info, return 'N'.")
 
 class Why(BaseModel):
     identified: bool = Field(description="True if a business value/reason is provided.")
-    value_evidence: str = Field(default="N", description="The reason. If no info, return 'N'.")
+    value_evidence: str = Field(default="not_found", description="The reason. If no info, return 'N'.")
 
 class CustomerImpact(BaseModel):
     identified: bool = Field(description="True if customer experience is mentioned")
-    impact_evidence: str = Field(default="N", description="Specific impact. If no info, return 'N'.")
+    impact_evidence: str = Field(default="not_found", description="Specific impact. If no info, return 'N'.")
 
 class Technologies(BaseModel):
     identified: bool = Field(description="True if tech tools/languages are mentioned.")
@@ -114,19 +113,16 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 
     system_prompt = (
         """You are a deterministic Jira metadata extractor. Extract structured metadata from ticket descriptions.\n"
-        "STEPS:\n"
-        "1. Analyze the text contextually in the 'reasoning' field.\n"
-        "2. Extract Who, What, Why, Impact, and Tech.\n"
-        "3. Be strict: If implicit, mark identified=False."
-        Rules:
-        - Only mark identified=True if explicitly stated in the text.
-        - Do NOT infer unstated actors or intent.
-        - If information is ambiguous, set identified=False.
-        - Do NOT hallucinate technologies.
-        - Keep text evidence EXACTLY as written in the input.
-        - Do not paraphrase evidence.
-        You must produce valid JSON matching the schema exactly.
-""")
+         Rules:\n
+        - Analyze the text contextually in the 'reasoning' field.\n
+        - Extract Who, What, Why, Impact, and Tech.\n        
+        - Only mark identified=True if explicitly stated in the text.\n
+        - Do NOT infer unstated actors or intent.\n
+        - If information is ambiguous, set identified=False.\n
+        - Do NOT hallucinate technologies.\n
+        - Keep text evidence EXACTLY as written in the input.\n
+        - Do not paraphrase evidence.\n
+        - You must produce valid JSON matching the schema exactly""")
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -140,7 +136,6 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
         model=settings.model,
         messages=messages,
         temperature=0.0,
-        max_output_tokens = settings.max_output_tokens,
         response_format=JiraAnalysis,)
       
       if completion.choices[0].message.refusal:
