@@ -70,11 +70,6 @@ class JiraAnalysis(BaseModel):
     customer_impact: CustomerImpact
     technologies: Technologies
 
-def sanitize_input(text: str, max_chars: int = 10000) -> str:
-    if len(text) > max_chars:
-        raise ValueError(f"Input exceeds {max_chars} characters")
-    # Basic PII patterns (use presidio or similar in production)
-    return text
 # ---------------------------------------------------------
 # 2. Client Setup & Safety Checks
 # ---------------------------------------------------------
@@ -110,6 +105,11 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
         {"role": "user", "content": jira_description}
     ]
 
+    
+    if len(jira_description) > max_input_chars:
+        print(f"Error: Input too long ({len(jira_description)} chars)")
+        return None
+        
     try:
       completion = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
