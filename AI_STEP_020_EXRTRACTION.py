@@ -39,8 +39,7 @@ class Who(BaseModel):
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
-    # حالا چون "N" در Enum هست، خطا نمی‌دهد
-    category: ActionCategory = Field(default=ActionCategory.NOT_FOUND, description="Classify intent. If no info, return 'N'.")
+    category: ActionCategory = Field(default=ActionCategory.NOT_FOUND, description="Classify main intent of jira. If no info, return 'N'.")
     intent_evidence: str = Field(default="N", description="Specific action mentioned. If no info, return 'N'.")
 
 class Why(BaseModel):
