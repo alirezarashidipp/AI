@@ -4,7 +4,7 @@ from openai import OpenAI
 import os
 import sys
 from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import httpx
 from openai import OpenAI, LengthFinishReasonError
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -79,7 +79,7 @@ class Technologies(BaseModel):
         return list(set(str(tool).strip() for tool in v))
 
 class BacklogQuestion(BaseModel):
-    question: str = Field(description="A critical question regarding missing data or requirements that the ticket writer FORGOT to include. This must be a blocker question that a developer would absolutely ask before starting work (e.g., missing error codes, undefined edge cases).")
+    question: str = Field(description="A critical question regarding missing data or requirements that the ticket writer FORGOT to include. ")
 
 
 class JiraAnalysis(BaseModel):
@@ -93,7 +93,15 @@ class JiraAnalysis(BaseModel):
     grooming_questions: List[BacklogQuestion] = Field(
     max_length=2,
     min_length=2)
-  
+
+@model_validator(mode='after')
+def enforce_questions_logic(self):
+          has_what = self.what.identified and self.what.category != ActionCategory.NOT_FOUND
+          has_why = self.why.identified
+          
+          if not (has_what and has_why):
+              self.grooming_questions = []
+          return self
 # ---------------------------------------------------------
 # 2. Client Setup & Safety Checks
 # ---------------------------------------------------------
@@ -120,22 +128,24 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
             return None
 
     system_prompt = (
-        """You are an expert Technical Product Manager and Jira Analyst.\n"
+        """You are an Jira Analyst and expert Technical Product Manager.\n
            Your Goal:\n
         1. Extract structured metadata (Who, What, Why, Impact, Tech) from the ticket description.\n
         2. CRITICAL: Act as a 'Backlog Groomer'. Identify gaps, ambiguities, or MISSING DATA in the requirements.\n
 
+        Rules for Extraction:\n
+          - Extract Who, What, Why, Impact, and Tech.\n
+          - Only mark identified=True if explicitly stated.\n
+          - Do NOT hallucinate technologies.\n
+          - Keep text evidence EXACTLY as written.\n
 
          Rules for Questions:\n
-        - Generate exactly 2 clarifying questions.\n
-        - Focus on what is NOT written but essential for development (e.g., missing error handling, undefined data schemas, unknown load requirements).\n
-        - Be specific. Do not ask generic questions like "Is this correct?".\n
-        
-        Rules for Extraction:
-        - Extract Who, What, Why, Impact, and Tech.\n
-        - Only mark identified=True if explicitly stated.
-        - Do NOT hallucinate technologies.
-        - Keep text evidence EXACTLY as written.
+        - CHECK FIRST: Did you find a clear 'What' (Action) AND a clear 'Why' (Value)?\n
+        - IF YES (Both found): Generate exactly 2 critical technical questions about missing implementation details. Be specific. 
+           - This must be a blocker question that a developer would absolutely ask before starting work.
+           - Focus on what is NOT written but essential for development.
+           - Do not ask generic questions like "Is this correct?".\n
+        - IF NO (Either missing): Return an empty list [] for questions. Do NOT generate questions if the core requirement is vague.
 
         You must produce valid JSON matching the schema exactly""")
 
@@ -188,7 +198,7 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 # Usage Example
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    description = "We need to move Redis to AWS ElastiCache. the name of service. we should have deploy this quickly."
+    description = "We need to move Redis to AWS ElastiCache. the name of service. we should have deploy this quickly. system code should written in languange"
 
   
     result = extract_jira_metadata(description)
