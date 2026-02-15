@@ -91,8 +91,9 @@ class JiraAnalysis(BaseModel):
     technologies: Technologies
 
     grooming_questions: List[BacklogQuestion] = Field(
-    max_length=2,
-    min_length=2)
+        default_factory=list,
+        max_length=2,
+        description="Questions if What and Why are clear.")
 
 @model_validator(mode='after')
 def enforce_questions_logic(self):
