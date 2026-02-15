@@ -166,25 +166,25 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
   # --------------------------------------------------
   # Error Handling
   # --------------------------------------------------
-  except LengthFinishReasonError as e:
-      print("[TOKEN_LIMIT_EXCEEDED]")
-      return None
-  except ValidationError as e:
-      print("[SCHEMA_VALIDATION_ERROR]")
-      print(e.json())
-      return None
-  except (APIConnectionError, APITimeoutError) as e:
-      print(f"[NETWORK_ERROR] {e}")
-      raise 
-  except RateLimitError as e:
-      print(f"[RATE_LIMIT_ERROR] {e}")
-      raise 
-  except InternalServerError as e:
-      print(f"[OPENAI_SERVER_ERROR] {e}")
-      raise 
-  except Exception as e:
-      print(f"[UNEXPECTED_ERROR] {type(e).__name__}: {e}")
-      raise
+    except LengthFinishReasonError as e:
+        print("[TOKEN_LIMIT_EXCEEDED]")
+        return None
+    except ValidationError as e:
+        print("[SCHEMA_VALIDATION_ERROR]")
+        print(e.json())
+        return None
+    except (APIConnectionError, APITimeoutError) as e:
+        print(f"[NETWORK_ERROR] {e}")
+        raise 
+    except RateLimitError as e:
+        print(f"[RATE_LIMIT_ERROR] {e}")
+        raise 
+    except InternalServerError as e:
+        print(f"[OPENAI_SERVER_ERROR] {e}")
+        raise 
+    except Exception as e:
+        print(f"[UNEXPECTED_ERROR] {type(e).__name__}: {e}")
+        raise
 
 # ---------------------------------------------------------
 # Usage Example
