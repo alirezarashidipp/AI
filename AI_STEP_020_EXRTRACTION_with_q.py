@@ -87,14 +87,13 @@ class JiraAnalysis(BaseModel):
     customer_impact: CustomerImpact
     technologies: Technologies
 
-    grooming_questions: List[str] = Field(description="Questions if What and Why are clear. Two critical questions regarding missing data or requirements that the ticket writer FORGOT to include")
+    grooming_questions: List[str] = Field(description="Question if What is clear. Two critical questions regarding missing data or requirements that the ticket writer FORGOT to include")
 
     @model_validator(mode='after')
     def enforce_questions_logic(self):
               has_what = self.what.identified and self.what.category != ActionCategory.NOT_FOUND
-              has_why = self.why.identified
               
-              if not (has_what and has_why):
+              if not (has_what):
                   self.grooming_questions = []
               return self
 # ---------------------------------------------------------
@@ -127,7 +126,7 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
            Your Goal:
         1. Analyze the input carefully.
         2. Extract structured metadata (Who, What, Why, Impact, Tech).
-        3. CRITICAL: Act as a 'Backlog Groomer'. Identify gaps, ambiguities, or MISSING DATA in the requirements.\n
+        3. CRITICAL: Act as a 'Backlog Groomer'. Identify gaps, ambiguities, or MISSING DATA in the requirements that develoer would ask.\n
 
         STEPS:
             1. First, fill the 'reasoning' field: Think step-by-step. Analyze if the ticket clearly states the Action (What) and Value (Why). Identify ambiguity.
@@ -142,8 +141,8 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
           
 
          Rules for Questions:
-        - CHECK FIRST: Did you find a clear 'What' (Action) AND a clear 'Why' (Value)?
-        - IF YES (Both found): Generate exactly 2 critical technical questions about missing implementation details. Be specific. 
+        - CHECK FIRST: Did you find a clear 'What' (Action)?
+        - IF YES (found): Generate exactly 2 critical technical questions about missing implementation details. Be specific. 
            - This must be a blocker question that a developer would absolutely ask before starting work.
            - Focus on what is NOT written but essential for development.
            - Do not ask generic questions like "Is this correct?".
