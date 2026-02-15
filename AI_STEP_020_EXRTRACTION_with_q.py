@@ -78,9 +78,6 @@ class Technologies(BaseModel):
             return []
         return list(set(str(tool).strip() for tool in v))
 
-class BacklogQuestion(BaseModel):
-    question: str = Field(description="A critical question regarding missing data or requirements that the ticket writer FORGOT to include. ")
-
 
 class JiraAnalysis(BaseModel):
     reasoning: str = Field(description="Chain-of-thought analysis of the description.")
@@ -90,10 +87,7 @@ class JiraAnalysis(BaseModel):
     customer_impact: CustomerImpact
     technologies: Technologies
 
-    grooming_questions: List[BacklogQuestion] = Field(
-        default_factory=list,
-        max_length=2,
-        description="Questions if What and Why are clear.")
+    grooming_questions: List[str] = Field(description="Questions if What and Why are clear. Two critical questions regarding missing data or requirements that the ticket writer FORGOT to include")
 
     @model_validator(mode='after')
     def enforce_questions_logic(self):
@@ -129,23 +123,30 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
             return None
 
     system_prompt = (
-        """You are an Jira Analyst and expert Technical Product Manager.\n
-           Your Goal:\n
-        1. Extract structured metadata (Who, What, Why, Impact, Tech) from the ticket description.\n
-        2. CRITICAL: Act as a 'Backlog Groomer'. Identify gaps, ambiguities, or MISSING DATA in the requirements.\n
+        """You are an Jira Analyst and expert Technical Product Manager.
+           Your Goal:
+        1. Analyze the input carefully.
+        2. Extract structured metadata (Who, What, Why, Impact, Tech).
+        3. CRITICAL: Act as a 'Backlog Groomer'. Identify gaps, ambiguities, or MISSING DATA in the requirements.\n
 
-        Rules for Extraction:\n
+        STEPS:
+            1. First, fill the 'reasoning' field: Think step-by-step. Analyze if the ticket clearly states the Action (What) and Value (Why). Identify ambiguity.
+            2. Based on your reasoning, fill the other fields.
+
+        Rules for Extraction:
+          - Evidence must be EXACT quotes from the text.
           - Extract Who, What, Why, Impact, and Tech.\n
           - Only mark identified=True if explicitly stated.\n
           - Do NOT hallucinate technologies.\n
           - Keep text evidence EXACTLY as written.\n
+          
 
-         Rules for Questions:\n
-        - CHECK FIRST: Did you find a clear 'What' (Action) AND a clear 'Why' (Value)?\n
+         Rules for Questions:
+        - CHECK FIRST: Did you find a clear 'What' (Action) AND a clear 'Why' (Value)?
         - IF YES (Both found): Generate exactly 2 critical technical questions about missing implementation details. Be specific. 
            - This must be a blocker question that a developer would absolutely ask before starting work.
            - Focus on what is NOT written but essential for development.
-           - Do not ask generic questions like "Is this correct?".\n
+           - Do not ask generic questions like "Is this correct?".
         - IF NO (Either missing): Return an empty list [] for questions. Do NOT generate questions if the core requirement is vague.
 
         You must produce valid JSON matching the schema exactly""")
