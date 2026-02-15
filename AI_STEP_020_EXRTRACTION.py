@@ -37,20 +37,20 @@ class ExtractionReasoning(BaseModel):
 
 class Who(BaseModel):
     identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
-    evidence: Optional[str] = Field(default=None, description="The exact phrase found (e.g., 'Python Developer').")
+    evidence: str = Field(default="N", description="The exact phrase found (e.g., 'Python Developer').If no info is found, strictly return 'N'")
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
-    category: Optional[ActionCategory] = Field(default=None, description="Classify the intent into the single most relevant category.")
-    intent_evidence: Optional[str] = Field(default=None, description="The specific action mentioned (e.g., 'migrate database', 'fix login bug').")
+    category: Optional[ActionCategory] = Field(default="N", description="Classify the intent into the single most relevant category.If no info is found, strictly return 'N'")
+    intent_evidence: str = Field(default="N", description="The specific action mentioned (e.g., 'migrate database', 'fix login bug'),If no info is found, strictly return 'N'")
 
 class Why(BaseModel):
     identified: bool = Field(description="True if a business value/reason is provided.")
-    value_evidence: Optional[str] = Field(default=None, description="The reason (e.g., 'improve performance').")
+    value_evidence: Optional[str] = Field(default="N", description="The reason (e.g., 'improve performance').If no info is found, strictly return 'N'")
 
 class CustomerImpact(BaseModel):
-    identified: bool = Field(description="True if customer experience is mentioned.")
-    impact_evidence: Optional[str] = Field(default=None, description="Specific impact on the customer.")
+    identified: bool = Field(description="True if customer experience is mentioned")
+    impact_evidence: str = Field(default="N", description="Specific impact on the customer. If no info is found, strictly return 'N'")
 
 class Technologies(BaseModel):
     identified: bool = Field(description="True if tech tools/languages are mentioned.")
