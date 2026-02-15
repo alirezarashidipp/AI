@@ -184,22 +184,8 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 # Usage Example
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    jira_description = (
-        "We need to migrate the Redis cache to AWS ElastiCache "
-        "to improve Python API performance for our enterprise users."
-    )
+    description = "We need to migrate Redis to AWS ElastiCache..."
 
-    try:
-        result = extract_jira_metadata(jira_description)
-
-        if result is None:
-            print("Extraction failed. No structured output returned.")
-            sys.exit(1)
-
-        print("--- Structured Data ---")
-        print(result.model_dump_json(indent=2))
-
-    except Exception as e:
-        print("Extraction failed after retries.")
-        print(f"Fatal error: {type(e).__name__} -> {e}")
-        sys.exit(1)
+  
+    result = extract_jira_metadata(description)
+    print(result.model_dump_json(indent=2))
