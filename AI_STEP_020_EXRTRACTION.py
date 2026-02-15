@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     max_retries: int = 3
     timeout: float = 30.0
     max_input_chars: int = 15000
+    min_time_retry: int = 2
+    max_time_retry: int = 10
 
 
 settings = Settings()
@@ -102,7 +104,7 @@ client = OpenAI(
 # 3. Extraction Logic
 # ---------------------------------------------------------
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+@retry(stop=stop_after_attempt(settings.max_retries), wait=wait_exponential(multiplier=1, min=settings.min_time_retry, max=settings.max_time_retry))
 def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 
     if len(jira_description) > settings.max_input_chars:
