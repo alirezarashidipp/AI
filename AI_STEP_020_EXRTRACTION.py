@@ -1,10 +1,27 @@
+import json
+import math
+from openai import OpenAI
 import os
 import sys
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
+import httpx
 from openai import OpenAI, LengthFinishReasonError
 from tenacity import retry, stop_after_attempt, wait_exponential
 from enum import Enum
+client = OpenAI()
+
+from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic_settings import BaseSettings 
+from openai import (
+    OpenAI, 
+    LengthFinishReasonError, 
+    APIConnectionError, 
+    APITimeoutError, 
+    RateLimitError, 
+    InternalServerError
+)
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 class Settings(BaseSettings):
     openai_api_key: str
@@ -12,9 +29,7 @@ class Settings(BaseSettings):
     max_retries: int = 3
     timeout: float = 30.0
     max_input_chars: int = 15000
-    
-    class Config:
-        env_file = ".env"
+
 
 settings = Settings()
 
@@ -31,7 +46,7 @@ class ActionCategory(str, Enum):
     DEPLOYMENT = "deployment"
     RESEARCH = "research"
     OTHER = "other"
-    NOT_FOUND = "N"  # اضافه کردن N به Enum برای جلوگیری از خطای ولیدیشن
+    NOT_FOUND = "N" 
 
 class Who(BaseModel):
     identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
@@ -62,7 +77,6 @@ class Technologies(BaseModel):
         return list(set(str(tool).strip() for tool in v))
 
 class JiraAnalysis(BaseModel):
-    # 'reasoning' field forces the model to think first -> Better accuracy
     reasoning: str = Field(description="Chain-of-thought analysis of the description.")
     who: Who
     what: What
@@ -78,11 +92,10 @@ if not api_key:
     print("CRITICAL ERROR: OPENAI_API_KEY environment variable is not set.")
     sys.exit(1)
 
-# client = OpenAI(api_key=api_key) # method 1
-client = OpenAI(                   # method 2
+client = OpenAI(                   
     api_key=api_key,
     timeout=httpx.Timeout(30.0, connect=5.0),
-    max_retries=0,  # We handle retries with tenacity for control
+    max_retries=0,  
 )
 
 # ---------------------------------------------------------
@@ -91,6 +104,10 @@ client = OpenAI(                   # method 2
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
+
+    if len(jira_description) > settings.max_input_chars:
+            print(f"Error: Input too long ({len(jira_description)} chars)")
+            return None
 
     system_prompt = (
         "You are an expert Jira Analyst. Extract structured metadata from ticket descriptions.\n"
@@ -106,13 +123,10 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
     ]
 
     
-    if len(jira_description) > max_input_chars:
-        print(f"Error: Input too long ({len(jira_description)} chars)")
-        return None
         
     try:
       completion = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
+        model=settings.model,
         messages=messages,
         temperature=0.0,
         response_format=JiraAnalysis,)
@@ -182,7 +196,6 @@ if __name__ == "__main__":
             print("Extraction failed. No structured output returned.")
             sys.exit(1)
 
-        print(f"--- Analysis Logic ---\n{result.reasoning}\n")
         print("--- Structured Data ---")
         print(result.model_dump_json(indent=2))
 
