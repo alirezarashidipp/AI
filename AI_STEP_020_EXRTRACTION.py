@@ -19,6 +19,18 @@ class ActionCategory(str, Enum):
 # ---------------------------------------------------------
 # 1. Schema Definitions (Optimized)
 # ---------------------------------------------------------
+class Settings(BaseSettings):
+    openai_api_key: str
+    model: str = "gpt-4o-2024-08-06"
+    max_retries: int = 3
+    timeout: float = 30.0
+    max_input_chars: int = 15000
+    
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
+
 
 class ExtractionReasoning(BaseModel):
     analysis: str = Field(description="Briefly analyze the ticket to identify key components before extraction.")
@@ -63,6 +75,11 @@ class JiraAnalysis(BaseModel):
     customer_impact: CustomerImpact
     technologies: Technologies
 
+def sanitize_input(text: str, max_chars: int = 10000) -> str:
+    if len(text) > max_chars:
+        raise ValueError(f"Input exceeds {max_chars} characters")
+    # Basic PII patterns (use presidio or similar in production)
+    return text
 # ---------------------------------------------------------
 # 2. Client Setup & Safety Checks
 # ---------------------------------------------------------
@@ -71,7 +88,12 @@ if not api_key:
     print("CRITICAL ERROR: OPENAI_API_KEY environment variable is not set.")
     sys.exit(1)
 
-client = OpenAI(api_key=api_key)
+# client = OpenAI(api_key=api_key) # method 1
+client = OpenAI(                   # method 2
+    api_key=api_key,
+    timeout=httpx.Timeout(30.0, connect=5.0),
+    max_retries=0,  # We handle retries with tenacity for control
+)
 
 # ---------------------------------------------------------
 # 3. Extraction Logic
