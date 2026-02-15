@@ -186,7 +186,7 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 # Usage Example
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    description = "We need to migrate Redis to AWS ElastiCache..."
+    description = "We need to move Redis to AWS ElastiCache..."
 
   
     result = extract_jira_metadata(description)
