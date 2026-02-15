@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     max_retries: int = 3
     timeout: float = 30.0
     max_input_chars: int = 15000
+    max_output_tokens: int = 1000
     min_time_retry: int = 2
     max_time_retry: int = 10
 
@@ -112,12 +113,20 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
             return None
 
     system_prompt = (
-        "You are an expert Jira Analyst. Extract structured metadata from ticket descriptions.\n"
+        """You are a deterministic Jira metadata extractor. Extract structured metadata from ticket descriptions.\n"
         "STEPS:\n"
         "1. Analyze the text contextually in the 'reasoning' field.\n"
         "2. Extract Who, What, Why, Impact, and Tech.\n"
         "3. Be strict: If implicit, mark identified=False."
-    )
+        Rules:
+        - Only mark identified=True if explicitly stated in the text.
+        - Do NOT infer unstated actors or intent.
+        - If information is ambiguous, set identified=False.
+        - Do NOT hallucinate technologies.
+        - Keep text evidence EXACTLY as written in the input.
+        - Do not paraphrase evidence.
+        You must produce valid JSON matching the schema exactly.
+""")
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -131,6 +140,7 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
         model=settings.model,
         messages=messages,
         temperature=0.0,
+        max_output_tokens = settings.max_output_tokens,
         response_format=JiraAnalysis,)
       
       if completion.choices[0].message.refusal:
