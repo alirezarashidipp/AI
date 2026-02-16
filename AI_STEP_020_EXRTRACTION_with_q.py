@@ -47,11 +47,11 @@ class ActionCategory(str, Enum):
     DEPLOYMENT = "deployment"
     RESEARCH = "research"
     OTHER = "other"
-    NOT_FOUND = "not_found" 
+    NOT_FOUND = "nan" 
 
 class Who(BaseModel):
     identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
-    evidence: str = Field(default="not_found", description="The exact phrase found. If no info, return 'N'.")
+    evidence: str = Field(default="nan", description="The exact phrase found. If no info, return 'nan'.")
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
