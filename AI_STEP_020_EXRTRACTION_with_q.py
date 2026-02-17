@@ -11,7 +11,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, ValidationError
-from pydantic_settings import BaseSettings 
+
 from openai import (
     OpenAI, 
     LengthFinishReasonError, 
@@ -22,8 +22,9 @@ from openai import (
 )
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-class Settings(BaseSettings):
+class Settings(BaseModel):
     openai_api_key: str
+    openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     model: str = "gpt-4o-2024-08-06"
     max_retries: int = 3
     timeout: float = 30.0
