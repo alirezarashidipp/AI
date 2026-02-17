@@ -1,0 +1,231 @@
+import os
+import sys
+import json
+import uuid
+import requests
+import httpx
+from typing import List, Optional
+from enum import Enum
+from pydantic import BaseModel, Field, field_validator, model_validator, ValidationError
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+
+# =========================================================
+# 1. SETTINGS
+# =========================================================
+
+class Settings(BaseModel):
+    gaip_url: str
+    am_token: str
+    user_id: str
+    model: str = "gpt-4.1"
+    timeout: int = 30
+    max_retries: int = 3
+    min_time_retry: int = 2
+    max_time_retry: int = 10
+    max_input_chars: int = 15000
+
+
+settings = Settings(
+    gaip_url=os.getenv("GAIP_URL", ""),
+    am_token=os.getenv("AM_TOKEN", ""),
+    user_id=os.getenv("USER_ID", "")
+)
+
+if not settings.gaip_url or not settings.am_token or not settings.user_id:
+    print("CRITICAL ERROR: GAIP_URL / AM_TOKEN / USER_ID not set in environment.")
+    sys.exit(1)
+
+
+# =========================================================
+# 2. SCHEMA DEFINITIONS
+# =========================================================
+
+class ActionCategory(str, Enum):
+    MIGRATION = "migration"
+    DEBUG = "debug"
+    ENHANCE = "enhance"
+    REFACTOR = "refactor"
+    DOCUMENTATION = "documentation"
+    TESTING = "testing"
+    DEPLOYMENT = "deployment"
+    RESEARCH = "research"
+    OTHER = "other"
+    NOT_FOUND = "nan"
+
+
+class Who(BaseModel):
+    identified: bool
+    evidence: str = "nan"
+
+
+class What(BaseModel):
+    identified: bool
+    category: ActionCategory = ActionCategory.NOT_FOUND
+    intent_evidence: str = "not_found"
+
+
+class Why(BaseModel):
+    identified: bool
+    value_evidence: str = "not_found"
+
+
+class CustomerImpact(BaseModel):
+    identified: bool
+    impact_evidence: str = "not_found"
+
+
+class Technologies(BaseModel):
+    identified: bool
+    tools: List[str] = Field(default_factory=list)
+
+    @field_validator("tools", mode="before")
+    @classmethod
+    def normalize_tools(cls, v):
+        if not v or not isinstance(v, list):
+            return []
+        return list(set(str(tool).strip() for tool in v))
+
+
+class JiraAnalysis(BaseModel):
+    reasoning: str
+    who: Who
+    what: What
+    why: Why
+    customer_impact: CustomerImpact
+    technologies: Technologies
+    grooming_questions: List[str]
+
+    @model_validator(mode="after")
+    def enforce_questions_logic(self):
+        has_what = self.what.identified and self.what.category != ActionCategory.NOT_FOUND
+        if not has_what:
+            self.grooming_questions = []
+        return self
+
+
+# =========================================================
+# 3. GAIP CLIENT
+# =========================================================
+
+class GAIPClient:
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
+
+    def _headers(self):
+        return {
+            "AMToken": self.settings.am_token,
+            "Content-Type": "application/json",
+            "Token_Type": "SESSION_TOKEN",
+            "x-correlation-id": str(uuid.uuid4()),
+            "x-usersession-id": str(uuid.uuid4())
+        }
+
+    @retry(
+        stop=stop_after_attempt(settings.max_retries),
+        wait=wait_exponential(multiplier=1,
+                              min=settings.min_time_retry,
+                              max=settings.max_time_retry)
+    )
+    def chat_completion(self, messages: list, temperature: float = 0.0):
+
+        payload = {
+            "model": self.settings.model,
+            "messages": messages,
+            "temperature": temperature,
+            "user": self.settings.user_id
+        }
+
+        response = requests.post(
+            self.settings.gaip_url,
+            headers=self._headers(),
+            json=payload,
+            timeout=self.settings.timeout
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(f"GAIP Error: {response.text}")
+
+        return response.json()
+
+
+gaip_client = GAIPClient(settings)
+
+
+# =========================================================
+# 4. EXTRACTION LOGIC
+# =========================================================
+
+def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
+
+    if len(jira_description) > settings.max_input_chars:
+        print("Input too long.")
+        return None
+
+    system_prompt = """
+You are an expert Jira Technical Product Manager.
+
+You must return ONLY valid JSON matching this schema exactly.
+No markdown. No explanation.
+
+{
+  "reasoning": "...",
+  "who": {"identified": true/false, "evidence": "..."},
+  "what": {"identified": true/false, "category": "...", "intent_evidence": "..."},
+  "why": {"identified": true/false, "value_evidence": "..."},
+  "customer_impact": {"identified": true/false, "impact_evidence": "..."},
+  "technologies": {"identified": true/false, "tools": []},
+  "grooming_questions": []
+}
+
+Rules:
+- Evidence must be exact quotes.
+- Do NOT hallucinate technologies.
+- Only mark identified=True if explicitly stated.
+- If no clear WHAT → grooming_questions must be [].
+"""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": jira_description}
+    ]
+
+    try:
+        raw_response = gaip_client.chat_completion(messages)
+
+        content = raw_response["choices"][0]["message"]["content"]
+
+        parsed_json = json.loads(content)
+
+        return JiraAnalysis(**parsed_json)
+
+    except json.JSONDecodeError:
+        print("[JSON_PARSE_ERROR]")
+        return None
+
+    except ValidationError as e:
+        print("[SCHEMA_VALIDATION_ERROR]")
+        print(e.json())
+        return None
+
+    except Exception as e:
+        print(f"[UNEXPECTED_ERROR] {type(e).__name__}: {e}")
+        return None
+
+
+# =========================================================
+# 5. USAGE
+# =========================================================
+
+if __name__ == "__main__":
+
+    description = """
+    We need to migrate Redis to AWS ElastiCache.
+    This should improve system scalability.
+    """
+
+    result = extract_jira_metadata(description)
+
+    if result:
+        print(result.model_dump_json(indent=2))
