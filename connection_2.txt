@@ -1,18 +1,27 @@
 import requests
 import uuid
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict  # ConfigDict اضافه شد
 
 class JokeResponse(BaseModel):
     setup: str
     punchline: str
 
-# استخراج Schema برای ارسال به مدل
+    # --- تغییر مهم: اضافه کردن تنظیمات برای Strict Mode ---
+    model_config = ConfigDict(extra='forbid') 
+    # این خط باعث می‌شود "additionalProperties": false به اسکیما اضافه شود
+
+# استخراج Schema
+json_schema_dict = JokeResponse.model_json_schema()
+
+# پاکسازی پارامترهای اضافی که گاهی باعث خطا می‌شوند (اختیاری اما توصیه شده)
+json_schema_dict.pop("title", None)
+
 json_format_template = {
     "type": "json_schema",
     "json_schema": {
         "name": "joke_schema",
-        "schema": JokeResponse.model_json_schema(),
+        "schema": json_schema_dict,
         "strict": True
     }
 }
@@ -28,7 +37,7 @@ headers = {
 data = {
     "model": "GPT-4.1",
     "messages": [{"role": "user", "content": "tell a joke in json format with setup and punchline keys."}],
-    "response_format": json_format_template, # اعمال فرمت Pydantic
+    "response_format": json_format_template,
     "max_tokens": 1000,
     "user": USER_ID,
     "temperature": 0.0
@@ -40,9 +49,14 @@ if response.status_code == 200:
     result = response.json()
     content = result["choices"][0]["message"]["content"]
     
-    # تبدیل متن به شیء Pydantic
-    joke = JokeResponse.model_validate_json(content)
-    print(f"Setup: {joke.setup}")
-    print(f"Punchline: {joke.punchline}")
+    # تبدیل متن به شیء
+    try:
+        joke = JokeResponse.model_validate_json(content)
+        print(f"Setup: {joke.setup}")
+        print(f"Punchline: {joke.punchline}")
+    except Exception as e:
+        print(f"Validation Error: {e}")
+        print(f"Raw Content: {content}")
 else:
-    print(f"Failed! Status: {response.status_code}, Response: {response.text}")
+    print(f"Failed! Status: {response.status_code}")
+    print(f"Response: {response.text}")
