@@ -24,8 +24,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 class Settings(BaseModel):
     openai_api_key: str
-    openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
-    model: str = "gpt-4o-2024-08-06"
+    model: str = "GPT-4.1"
     max_retries: int = 3
     timeout: float = 30.0
     max_input_chars: int = 15000
