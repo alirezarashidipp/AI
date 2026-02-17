@@ -1,37 +1,48 @@
+import requests
 import uuid
+import json
 from pydantic import BaseModel
-from openai import OpenAI
 
-# تعریف ساختار خروجی
 class JokeResponse(BaseModel):
     setup: str
     punchline: str
 
-# تنظیم هدرهای سفارشی (دقیقاً مشابه کد قبلی که کار می‌کرد)
-custom_headers = {
+# استخراج Schema برای ارسال به مدل
+json_format_template = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "joke_schema",
+        "schema": JokeResponse.model_json_schema(),
+        "strict": True
+    }
+}
+
+headers = {
     "AMToken": AMToken,
+    "Content-Type": "application/json",
     "Token_Type": "SESSION_TOKEN",
     "x-correlation-id": str(uuid.uuid4()),
     "x-usersession-id": str(uuid.uuid4())
 }
 
-# ایجاد کلاینت با هدرهای اختصاصی
-client = OpenAI(
-    api_key="EMPTY", # چون توکن را در هدر سفارشی می‌فرستید، این می‌تواند هر چیزی باشد
-    base_url=url,
-    default_headers=custom_headers
-)
+data = {
+    "model": "GPT-4.1",
+    "messages": [{"role": "user", "content": "tell a joke in json format with setup and punchline keys."}],
+    "response_format": json_format_template, # اعمال فرمت Pydantic
+    "max_tokens": 1000,
+    "user": USER_ID,
+    "temperature": 0.0
+}
 
-try:
-    completion = client.beta.chat.completions.parse(
-        model="GPT-4.1",
-        messages=[{"role": "user", "content": "Tell me a joke."}],
-        response_format=JokeResponse,
-    )
+response = requests.post(url, headers=headers, json=data)
 
-    joke = completion.choices[0].message.parsed
+if response.status_code == 200:
+    result = response.json()
+    content = result["choices"][0]["message"]["content"]
+    
+    # تبدیل متن به شیء Pydantic
+    joke = JokeResponse.model_validate_json(content)
     print(f"Setup: {joke.setup}")
     print(f"Punchline: {joke.punchline}")
-
-except Exception as e:
-    print(f"Error: {e}")
+else:
+    print(f"Failed! Status: {response.status_code}, Response: {response.text}")
