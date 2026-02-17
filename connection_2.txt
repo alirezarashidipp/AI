@@ -22,7 +22,7 @@ json_format_template = {
     "json_schema": {
         "name": "joke_schema",
         "schema": json_schema_dict,
-        "strict": True
+   
     }
 }
 
