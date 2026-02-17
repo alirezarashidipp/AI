@@ -1,0 +1,37 @@
+import uuid
+from pydantic import BaseModel
+from openai import OpenAI
+
+# تعریف ساختار خروجی
+class JokeResponse(BaseModel):
+    setup: str
+    punchline: str
+
+# تنظیم هدرهای سفارشی (دقیقاً مشابه کد قبلی که کار می‌کرد)
+custom_headers = {
+    "AMToken": AMToken,
+    "Token_Type": "SESSION_TOKEN",
+    "x-correlation-id": str(uuid.uuid4()),
+    "x-usersession-id": str(uuid.uuid4())
+}
+
+# ایجاد کلاینت با هدرهای اختصاصی
+client = OpenAI(
+    api_key="EMPTY", # چون توکن را در هدر سفارشی می‌فرستید، این می‌تواند هر چیزی باشد
+    base_url=url,
+    default_headers=custom_headers
+)
+
+try:
+    completion = client.beta.chat.completions.parse(
+        model="GPT-4.1",
+        messages=[{"role": "user", "content": "Tell me a joke."}],
+        response_format=JokeResponse,
+    )
+
+    joke = completion.choices[0].message.parsed
+    print(f"Setup: {joke.setup}")
+    print(f"Punchline: {joke.punchline}")
+
+except Exception as e:
+    print(f"Error: {e}")
