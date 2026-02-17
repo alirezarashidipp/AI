@@ -91,7 +91,7 @@ class JiraAnalysis(BaseModel):
     @model_validator(mode='after')
     def enforce_questions_logic(self):
               has_what = self.what.identified and self.what.category != ActionCategory.NOT_FOUND
-              
+
               if not (has_what):
                   self.grooming_questions = []
               return self
@@ -155,15 +155,15 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
         {"role": "user", "content": jira_description}
     ]
 
-    
-        
+
+
     try:
       completion = client.beta.chat.completions.parse(
         model=settings.model,
         messages=messages,
         temperature=0.0,
         response_format=JiraAnalysis,)
-      
+
       if completion.choices[0].message.refusal:
           print("[MODEL_REFUSAL] Model refused to process the input.")
           print(f"Reason: {completion.choices[0].message.refusal}")
@@ -201,6 +201,6 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 if __name__ == "__main__":
     description = "We need to move Redis to AWS ElastiCache. the name of service. we should have deploy this quickly. system code should written in languange"
 
-  
+
     result = extract_jira_metadata(description)
     print(result.model_dump_json(indent=2))
