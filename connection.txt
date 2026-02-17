@@ -1,0 +1,17 @@
+from pydantic import BaseModel
+from openai import OpenAI
+
+class JokeResponse(BaseModel):
+    setup: str
+    punchline: str
+
+client = OpenAI(api_key=AMToken, base_url=url)
+
+completion = client.beta.chat.completions.parse(
+    model="GPT-4.1",
+    messages=[{"role": "user", "content": "Tell me a joke."}],
+    response_format=JokeResponse,
+)
+
+joke = completion.choices[0].message.parsed
+print(joke.setup)
