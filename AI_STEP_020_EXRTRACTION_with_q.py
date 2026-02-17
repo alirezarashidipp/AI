@@ -11,6 +11,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic_settings import BaseSettings 
 from openai import (
     OpenAI, 
     LengthFinishReasonError, 
@@ -21,7 +22,7 @@ from openai import (
 )
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-class Settings(BaseModel):
+class Settings(BaseSettings):
     openai_api_key: str
     model: str = "gpt-4o-2024-08-06"
     max_retries: int = 3
@@ -198,7 +199,7 @@ def extract_jira_metadata(jira_description: str) -> Optional[JiraAnalysis]:
 # Usage Example
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    description = "We need to move Redis to AWS ElastiCache. the name of service. we should have deploy this quickly. system code should written in languange""
+    description = "We need to move Redis to AWS ElastiCache. the name of service. we should have deploy this quickly. system code should written in languange"
 
   
     result = extract_jira_metadata(description)
