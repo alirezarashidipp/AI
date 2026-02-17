@@ -23,4 +23,4 @@ data = {
 
 response = requests.post(url, headers=headers, json=data)
 result = response.json()
-print(result["choices"][0]["message"]["content"]
+print(result["choices"][0]["message"]["content"])
