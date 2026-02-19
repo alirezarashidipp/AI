@@ -1,0 +1,52 @@
+{
+
+    "Expected_Score_0_100": 88.01874,
+    "Confidence": 0.9301,
+    "Top5_SHAP_Features": [
+        "SPACHE_norm: +0.540",
+        "mean_zipf_lemma: +0.489",
+        "LIX_norm: +0.381",
+        "SMOG_norm: +0.331",
+        "negation_density_per_sentence: -0.280"
+    ],
+    "metadata": {
+      "reasoning": "The description states the.",
+    "who": {
+      "identified": false,
+      "evidence": "nan"
+      },
+      "what": {
+          "identified": true,
+          "category": "enhance",
+          "intent_evidence": "add a new column in the Project class",
+          "the_level_of_details_in_intent": "cloudy"
+      },
+
+
+      "why": {
+          "identified": true,
+          "value_evidence": "store an"
+      },
+
+      "customer_impact": {
+          "identified": false,
+          "impact_evidence": "nan"
+      },
+
+    "ac_defined": {
+        "presence_ac": false,
+        "english_text_feedback": "The text i",
+        "overal_feedback": "The descri"
+      },
+
+      "grooming_questions": [
+        "What should be the exact name o?",
+        "What data type shoul?",
+        "Should theld it be?",
+        "Are there any changlumn?"
+    ]
+    "agile_standard": "True"
+  }, 
+"STORY_QUALITY_INDEX": 3.0
+
+}
