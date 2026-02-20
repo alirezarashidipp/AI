@@ -1,0 +1,31 @@
+import pandas as pd
+from langchain_openai import ChatOpenAI # یا هر LLM دیگری که API آن را دارید
+from langchain_experimental.agents import create_pandas_dataframe_agent
+
+# 1. خواندن فایل CSV
+# پیشنهاد: اگر ستون‌های غیرضروری دارید، آن‌ها را حذف کنید تا تمرکز LLM بیشتر شود
+df = pd.read_csv("your_data.csv")
+
+# 2. راه‌اندازی مدل زبانی (LLM)
+# دما (temperature) را روی صفر بگذارید تا پاسخ‌ها منطقی و دقیق (غیرخلاقانه) باشند
+llm = ChatOpenAI(
+    api_key="YOUR_API_KEY", 
+    model="gpt-4o", # یا مدل جایگزین شما
+    temperature=0
+)
+
+# 3. ساخت ایجنت پانداز
+# پارامتر allow_dangerous_code برای اجازه دادن به اجرای کدهای تولید شده توسط هوش مصنوعی است
+agent = create_pandas_dataframe_agent(
+    llm,
+    df,
+    verbose=True, # برای دیدن مراحل تفکر و کدنویسی مدل در کنسول
+    allow_dangerous_code=True,
+    agent_type="openai-tools"
+)
+
+# 4. دریافت سوال از کاربر و پردازش
+user_question = "Which department has the highest revenue, and what is the exact amount?"
+response = agent.invoke({"input": user_question})
+
+print("Answer:", response["output"])
