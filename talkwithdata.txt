@@ -1,0 +1,94 @@
+import subprocess
+import tempfile
+import os
+import re
+import requests
+
+def call_llm_api(prompt: str) -> str:
+    url = "https://your-api-endpoint.com/v1/chat/completions"
+    token = "YOUR_ACCESS_TOKEN"
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "gpt-4.1",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.0,
+        "max_tokens": 500
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status() 
+        response_data = response.json()
+        return response_data["choices"][0]["message"]["content"]
+    except Exception:
+        return ""
+
+def extract_python_code(llm_response: str) -> str:
+    if not llm_response:
+        return ""
+    match = re.search(r'```python\s*(.*?)\s*```', llm_response, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return llm_response.strip()
+
+def run_nl_query_on_csv(user_query: str, csv_path: str) -> str:
+    system_prompt = f"""
+You are an expert Python data analyst backend.
+Your ONLY job is to write a Python script using `pandas` to answer the user's question based on a CSV file.
+
+Dataset Path: '{csv_path}'
+Columns: 'employee ID', 'BF Level 2', 'Coding Status', 'Country', 'BP ID', 'Column 6 Name'
+
+CRITICAL RULES:
+1. Output ONLY valid Python code. No explanations, no markdown styling outside the code block.
+2. The code MUST read the CSV file.
+3. The code MUST print() ONLY the final answer to stdout.
+4. Handle potential missing values or case-insensitivity in text filtering.
+"""
+    
+    full_prompt = f"{system_prompt}\n\nUser Question: {user_query}"
+    
+    raw_response = call_llm_api(full_prompt)
+    script_code = extract_python_code(raw_response)
+    
+    if not script_code:
+        return "Error: Could not retrieve or extract executable code."
+
+    temp_fd, temp_path = tempfile.mkstemp(suffix=".py")
+    try:
+        with os.fdopen(temp_fd, 'w') as f:
+            f.write(script_code)
+            
+        result = subprocess.run(
+            ['python', temp_path],
+            capture_output=True,
+            text=True,
+            timeout=15, 
+            check=False 
+        )
+        
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return f"Execution Error:\n{result.stderr.strip()}\n\nGenerated Code:\n{script_code}"
+            
+    except subprocess.TimeoutExpired:
+        return "Error: Execution exceeded time limit."
+    except Exception as e:
+        return f"System Error: {str(e)}"
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+if __name__ == "__main__":
+    question = "چند تا coder در کشور لهستان است؟"
+    target_csv = "dataset.csv" 
+    answer = run_nl_query_on_csv(question, target_csv)
+    print(f"Answer: {answer}")
