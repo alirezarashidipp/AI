@@ -3,60 +3,60 @@ import ssl
 import httpx
 import truststore
 import openai
+
 from token_jwt import get_token
 
-def get_enterprise_client(base_url):
-    ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    httpx_client = httpx.Client(
-        http2=True,
-        verify=ctx,
-        timeout=httpx.Timeout(30.0, connect=10.0)
-    )
-    
-    return openai.OpenAI(
-        api_key="internal_proxy_auth",
-        base_url=base_url,
-        http_client=httpx_client
+
+jwt = get_token()
+
+headers = {
+    "X-HSBC-E2E-Trust-Token": jwt,
+    "Content-Type": "application/json",
+    "x-correlation-id": str(uuid.uuid4()),
+    "x-usersession-id": str(uuid.uuid4())
+}
+
+BASE_URL = "Link"
+USER_ID = "UC1939194"
+MODEL = "GPT-4.1"
+
+
+ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+httpx_client = httpx.Client(
+    http2=True,
+    verify=ctx
+)
+
+default_headers = {
+    "Content-Type": "application/json",
+    "x-correlation-id": str(uuid.uuid4()),
+    "x-usersession-id": str(uuid.uuid4())
+}
+
+client = openai.OpenAI(
+    api_key="test",
+    http_client=httpx_client,
+    base_url=BASE_URL,
+    default_headers=default_headers
+)
+
+extra_headers = {
+    "X-HSBC-E2E-Trust-Token": jwt
+}
+
+try:
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "user", "content": "Hello, how are you?"}
+        ],
+        user=USER_ID,
+        extra_headers=extra_headers,
+        max_tokens=150
     )
 
-def execute_chat_completion(client, model, user_id, message_content):
-    jwt_val = get_token()
-    
-    headers = {
-        "X-HSBC-E2E-Trust-Token": jwt_val,
-        "x-correlation-id": str(uuid.uuid4()),
-        "x-usersession-id": str(uuid.uuid4()),
-        "Content-Type": "application/json"
-    }
+    print("Response:", response.choices[0].message.content)
 
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "user", "content": message_content}
-            ],
-            user=user_id,
-            extra_headers=headers,
-            max_tokens=150
-        )
-        return response.choices[0].message.content
-    except openai.APIStatusError as e:
-        return f"Status Error: {e.status_code} | {e.response.text}"
-    except openai.APIConnectionError:
-        return "Network connectivity or Proxy issue"
-    except Exception as e:
-        return f"Unexpected failure: {str(e)}"
-
-if __name__ == "__main__":
-    BASE_URL = "https://api.internal.hsbc/v1"
-    MODEL_NAME = "gpt-4"
-    USER_ID = "UC1939194"
-    
-    ai_client = get_enterprise_client(BASE_URL)
-    result = execute_chat_completion(
-        ai_client, 
-        MODEL_NAME, 
-        USER_ID, 
-        "Analyze this request for production readiness."
-    )
-    print(result)
+except openai.APIStatusError as e:
+    print(f"API Error: {e.status_code} {e.response}")
