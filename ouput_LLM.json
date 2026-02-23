@@ -1,0 +1,32 @@
+{
+  "reasoning": "The description states the.",
+  "who": {
+      "identified": false,
+      "evidence": "nan"
+      },
+  "what": {
+      "identified": true,
+      "category": "enhance",
+      "intent_evidence": "add a new column in the Project class",
+      "the_level_of_details_in_intent": "cloudy"
+      },
+  "why": {
+      "identified": true,
+      "value_evidence": "store an"
+      },
+  "customer_impact": {
+      "identified": false,
+      "impact_evidence": "nan"
+      },
+  "ac_defined": {
+      "presence_ac": false,
+      "english_text_feedback": "The text i",
+      "overal_feedback": "The descri"
+      },
+  "grooming_questions": [
+      "What should be the exact name o?",
+      "What data type shoul?",
+      "Should theld it be?",
+        "Are there any changlumn?"
+    ]
+  }
