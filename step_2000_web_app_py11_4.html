@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Analysis | Official Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .hsbc-red { background-color: #db0011; }
+        .hsbc-red-text { color: #db0011; }
+        .hsbc-bg-light { background-color: #fceceb; }
+        
+        /* Smooth transitions */
+        .transition-all-ease { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Card Hover Effect */
+        .hover-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+
+        /* Animation for results */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Custom Scrollbar for Textarea */
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: transparent; }
+        textarea::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="relative group">
+                    <img 
+                        src="./image_6e865c.png" 
+                        onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/a/aa/HSBC_logo_%282018%29.svg';" 
+                        alt="Corporate Logo" 
+                        class="h-9 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                    >
+                </div>
+                <div class="hidden md:block h-8 w-px bg-gray-200 mx-2"></div>
+                <div class="hidden md:block">
+                    <h1 class="text-lg font-semibold text-gray-900 leading-none tracking-tight">Global AI Analysis</h1>
+                    <span class="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Internal Tool v2.1</span>
+                </div>
+            </div>
+
+            <nav class="hidden md:flex items-center gap-8">
+                <a href="#" class="text-gray-500 hover:text-[#db0011] text-sm font-medium transition-colors duration-200">Dashboard</a>
+                <a href="#" class="text-gray-500 hover:text-[#db0011] text-sm font-medium transition-colors duration-200">FAQ</a>
+                <div class="flex items-center gap-3 pl-4 border-l border-gray-200">
+                    <div class="h-9 w-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 cursor-pointer hover:bg-[#db0011] hover:text-white transition-all duration-300 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow flex flex-col items-center justify-start pt-10 pb-12 px-4 sm:px-6">
+        
+        <div class="bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-5xl overflow-hidden border border-gray-100 relative">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#db0011] to-red-600"></div>
+            
+            <div class="p-8 md:p-10 space-y-8">
+                
+                <div class="text-center md:text-left">
+                    <h2 class="text-3xl font-bold text-gray-900 tracking-tight">Jira Story Quality Assessment</h2>
+                    <p class="text-gray-500 text-base mt-2 max-w-2xl">Analyze your user story for Agile best practices, clarity, and execution readiness using our advanced NLP engine.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <label for="inputText" class="flex justify-between items-center text-gray-700 font-semibold text-sm uppercase tracking-wide">
+                        <span>Input Content</span>
+                        <span class="text-xs text-gray-400 font-normal normal-case">Supports markdown & plain text</span>
+                    </label>
+                    <div class="relative group">
+                        <textarea id="inputText" rows="6" 
+                            class="w-full p-5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#db0011]/20 focus:border-[#db0011] transition-all duration-300 resize-none font-light bg-gray-50/50 group-hover:bg-white text-gray-800 text-sm leading-relaxed shadow-inner"
+                            placeholder="Paste your user story here...">As a Payment Platform Product Owner, I need to migrate the existing legacy SWIFT payment gateway to the new ISO 20022 compliant microservice architecture so that we ensure regulatory compliance before the Q4 deadline.</textarea>
+                        <div class="absolute bottom-3 right-3 pointer-events-none">
+                            <i data-lucide="edit-3" class="w-4 h-4 text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-end items-center gap-4 pt-2 border-t border-gray-50">
+                    <button type="button" onclick="alert('Feature coming soon: Project Search')" 
+                        class="w-full sm:w-auto text-gray-600 hover:text-[#db0011] font-medium py-3 px-6 rounded-lg transition duration-200 text-sm flex items-center justify-center gap-2 hover:bg-red-50">
+                        <i data-lucide="search" class="w-4 h-4"></i> Search Similar Projects
+                    </button>
+                    <button type="button" onclick="alert('Feature coming soon: Agile Rewrite')" 
+                        class="w-full sm:w-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 font-medium py-3 px-6 rounded-lg transition-all duration-200 shadow-sm hover:shadow text-sm">
+                        Rewrite Standard
+                    </button>
+                    <button onclick="analyzeText()" id="submitBtn"
+                        class="w-full sm:w-auto bg-[#db0011] hover:bg-[#b3000e] text-white font-medium py-3 px-8 rounded-lg transition-all duration-200 flex justify-center items-center shadow-lg shadow-red-100 hover:shadow-red-200 transform active:scale-95 text-sm tracking-wide">
+                        <span id="btnText">Analyze Quality</span>
+                        <svg id="loadingIcon" class="hidden animate-spin ml-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Results Section -->
+                <div id="resultArea" class="hidden mt-10 animate-fade-in space-y-6">
+                    
+                    <!-- 1. Top Row: Stars & Score -->
+                    <div class="flex flex-col md:flex-row gap-6">
+                        
+                        <!-- Star Rating Card with Dynamic Emoji -->
+                        <div class="w-full md:w-1/2 bg-white border border-gray-100 p-6 rounded-2xl flex justify-between items-center hover-card transition-all-ease shadow-sm">
+                            <div class="flex flex-col justify-center items-start">
+                                <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">Overall Rating</h3>
+                                <div id="starContainer" class="flex text-yellow-400 gap-1.5 mb-2">
+                                    <!-- Stars will be injected here dynamically -->
+                                </div>
+                                <span id="overallRatingNum" class="text-sm font-medium text-gray-600">-- out of 5.0</span>
+                            </div>
+                            <div class="w-16 h-16 ml-4 flex-shrink-0 flex items-center justify-center">
+                                <img id="ratingEmoji" src="" alt="Rating Emoji" class="w-full h-full object-contain hidden transition-transform hover:scale-110 drop-shadow-md">
+                            </div>
+                        </div>
+
+                        <!-- ML Score Card -->
+                        <div class="w-full md:w-1/2 bg-gradient-to-br from-gray-50 to-white border border-gray-100 p-6 rounded-2xl flex items-center justify-between hover-card transition-all-ease relative overflow-hidden">
+                            <div class="absolute right-0 top-0 h-full w-32 bg-gradient-to-l from-gray-100/50 to-transparent"></div>
+                            <div class="relative z-10">
+                                <h3 class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Expected Score</h3>
+                                <div class="mt-4 flex flex-col gap-2">
+                                    <div>
+                                        <span id="confidencePill" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Confidence: --
+                                        </span>
+                                    </div>
+                                    <!-- ADDED: English Text Feedback field -->
+                                    <span id="englishTextFeedback" class="text-[11px] text-gray-500 font-medium leading-tight max-w-[200px] line-clamp-2">--</span>
+                                </div>
+                            </div>
+                            <div class="text-right relative z-10">
+                                <div class="flex items-baseline gap-1">
+                                    <span id="scoreValue" class="text-6xl font-extralight text-gray-900 tracking-tighter">--</span>
+                                    <span class="text-lg text-gray-400 font-light">/100</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 2. Vertical Stack: The Agile Trinity (Who, What, Why) -->
+                    <div class="flex flex-col gap-4">
+                        
+                        <!-- WHO -->
+                        <div class="w-full bg-white border border-gray-100 rounded-2xl p-6 min-h-[120px] relative overflow-hidden hover-card transition-all-ease group">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 h-full">
+                                <div class="flex items-center gap-3 mt-1">
+                                    <div class="p-2 bg-blue-50 rounded-lg text-blue-600">
+                                        <i data-lucide="user" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Story Owner (Who)</h4>
+                                        <p class="text-xs text-gray-400 mt-1">Status: <span id="whoStatus" class="font-medium">--</span></p>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50/80 p-4 rounded-lg border border-gray-100 w-full md:w-3/5 flex flex-col justify-center">
+                                    <p class="text-[10px] text-gray-400 uppercase font-semibold mb-1">Evidence / Role</p>
+                                    <p id="whoRole" class="font-medium text-gray-800 text-sm leading-relaxed">--</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WHAT -->
+                        <div class="w-full bg-white border border-gray-100 rounded-2xl p-6 min-h-[120px] relative overflow-hidden hover-card transition-all-ease group">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-purple-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 h-full">
+                                <div class="flex items-center gap-3 mt-1">
+                                    <div class="p-2 bg-purple-50 rounded-lg text-purple-600">
+                                        <i data-lucide="target" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Primary Intent (What)</h4>
+                                        <p class="text-xs text-gray-400 mt-1">Status: <span id="whatStatus" class="font-medium">--</span></p>
+                                        <p class="text-xs text-gray-400 mt-1">Category: <span id="whatCategory" class="text-gray-600 font-medium">--</span></p>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50/80 p-4 rounded-lg border border-gray-100 w-full md:w-3/5 flex flex-col justify-center">
+                                    <p class="text-[10px] text-gray-400 uppercase font-semibold mb-1">Intent Evidence</p>
+                                    <p id="whatIntent" class="font-medium text-gray-800 text-sm leading-relaxed">--</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WHY & IMPACT -->
+                        <div class="w-full bg-white border border-gray-100 rounded-2xl p-6 min-h-[120px] relative overflow-hidden hover-card transition-all-ease group">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-green-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 h-full">
+                                <div class="flex items-center gap-3 mt-1">
+                                    <div class="p-2 bg-green-50 rounded-lg text-green-600">
+                                        <i data-lucide="gem" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Business Value (Why)</h4>
+                                        <p class="text-xs text-gray-400 mt-1">Status: <span id="whyStatus" class="font-medium">--</span></p>
+                                        <p class="text-xs text-gray-400 mt-1">Customer Impact: <span id="whyImpact" class="text-gray-600 font-medium">--</span></p>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50/80 p-4 rounded-lg border border-gray-100 w-full md:w-3/5 flex flex-col justify-center">
+                                    <p class="text-[10px] text-gray-400 uppercase font-semibold mb-1">Value Evidence</p>
+                                    <p id="whyValue" class="font-medium text-gray-800 text-sm leading-relaxed">--</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Two Boxes (Half Width Each) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Compliance Checks -->
+                        <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Compliance Checks</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-default border border-transparent">
+                                    <span class="text-sm text-gray-600 font-medium">Acceptance Criteria (AC) Defined</span>
+                                    <div id="acDefinedCheck" class="p-1.5 rounded-full"></div>
+                                </div>
+                                <div class="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-default border border-transparent">
+                                    <span class="text-sm text-gray-600 font-medium">Agile Standard Format</span>
+                                    <div id="agileFormatCheck" class="p-1.5 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scope Shape -->
+                        <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 flex flex-col items-center justify-center text-center">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Level of Details</h4>
+                            <div id="scopeShapeContainer" class="mb-3 w-16 h-16 relative flex items-center justify-center">
+                                <!-- Dynamic Weather SVG injected here -->
+                            </div>
+                            <p id="scopeShapeText" class="text-xs text-gray-600 font-semibold bg-gray-50 px-3 py-1 rounded-full border border-gray-100">--</p>
+                        </div>
+                    </div>
+
+                    <!-- 4. GenAI Insights (Full Width Stacked) -->
+                    <div class="flex flex-col gap-6 pt-2">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i data-lucide="sparkles" class="w-5 h-5 text-purple-600"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-900">GenAI Analysis & Feedback</h3>
+                        </div>
+                        
+                        <!-- Clarification -->
+                        <div class="w-full bg-blue-50/50 border border-blue-100 p-6 rounded-2xl relative">
+                            <div class="absolute top-6 right-6 text-blue-200">
+                                <i data-lucide="help-circle" class="w-12 h-12 opacity-20"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-blue-800 uppercase tracking-widest mb-4">Clarification Required / Questions</h4>
+                            <ul id="clarificationList" class="space-y-4">
+                                <!-- Dynamic Questions Injected here -->
+                            </ul>
+                        </div>
+
+                        <!-- AI Summary -->
+                        <div class="w-full bg-gray-50 border border-gray-200 p-6 rounded-2xl relative">
+                            <div class="absolute top-6 right-6 text-gray-200">
+                                <i data-lucide="message-square" class="w-12 h-12 opacity-20"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">AI Summary & Reasoning</h4>
+                            <div class="bg-white p-4 rounded-lg border border-gray-100 shadow-sm">
+                                <p id="aiSummaryText" class="text-sm text-gray-600 leading-relaxed">--</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Error Message -->
+                <div id="errorArea" class="hidden mt-4 p-4 bg-red-50 text-[#db0011] border border-red-100 rounded-lg text-sm flex items-center gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    <span id="errorText"></span>
+                </div>
+
+            </div>
+        </div>
+        
+        <div class="h-10"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-xs text-gray-400 font-medium">&copy; 2026 Global AI Analysis Tool. Internal Use Only.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize basic icons
+        lucide.createIcons();
+
+        // SVG Templates for the Scope Shape (BEAUTIFIED & DYNAMIC VERSION)
+        const SHAPE_SUNNY = `
+            <div class="absolute inset-0 bg-yellow-400/50 rounded-full blur-[24px] opacity-50 animate-pulse"></div>
+            <div class="absolute inset-0 w-full h-full animate-[spin_12s_linear_infinite]">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+                    <path d="M12 2V4M12 20V22M4 12H2M22 12H20M4.92893 4.92893L6.34315 6.34315M17.6569 17.6569L19.0711 19.0711M4.92893 19.0711L6.34315 17.6569M17.6569 6.34315L19.0711 4.92893" stroke="url(#sun-rays)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="12" r="5" fill="url(#sun-core)" />
+                    <defs>
+                        <linearGradient id="sun-rays" x1="12" y1="2" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#FDE047"/>
+                            <stop offset="1" stop-color="#F59E0B"/>
+                        </linearGradient>
+                        <linearGradient id="sun-core" x1="7" y1="7" x2="17" y2="17" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#FEF08A"/>
+                            <stop offset="0.5" stop-color="#F59E0B"/>
+                            <stop offset="1" stop-color="#EA580C"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+        `;
+
+        const SHAPE_CLOUDY = `
+            <div class="absolute inset-0 bg-blue-300/40 rounded-full blur-[24px] opacity-70 animate-pulse"></div>
+            <div class="absolute top-1 -left-1 w-10 h-10 animate-[bounce_5s_ease-in-out_infinite] [animation-delay:-2s]">
+                <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full text-gray-300/60 drop-shadow-sm">
+                    <path d="M17.5 19C19.9853 19 22 16.9853 22 14.5C22 12.1325 20.176 10.2039 17.8524 10.0166C17.382 6.61868 14.466 4 11 4C7.13401 4 4 7.13401 4 11C4 11.2335 4.01138 11.464 4.03358 11.691C1.7611 12.246 0 14.2831 0 16.75C0 19.6495 2.35051 22 5.25 22H17.5V19Z" />
+                </svg>
+            </div>
+            <div class="absolute bottom-0 right-0 w-14 h-14 animate-[bounce_4s_ease-in-out_infinite]">
+                <svg viewBox="0 0 24 24" fill="none" class="w-full h-full drop-shadow-xl">
+                    <path d="M17.5 19C19.9853 19 22 16.9853 22 14.5C22 12.1325 20.176 10.2039 17.8524 10.0166C17.382 6.61868 14.466 4 11 4C7.13401 4 4 7.13401 4 11C4 11.2335 4.01138 11.464 4.03358 11.691C1.7611 12.246 0 14.2831 0 16.75C0 19.6495 2.35051 22 5.25 22H17.5V19Z" fill="url(#main-cloud)" stroke="#ffffff" stroke-width="0.5"/>
+                    <defs>
+                        <linearGradient id="main-cloud" x1="11" y1="4" x2="11" y2="22" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#ffffff"/>
+                            <stop offset="1" stop-color="#e5e7eb"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+        `;
+
+        const SHAPE_SUN_CLOUD = `
+            <div class="absolute inset-0 bg-orange-200/40 rounded-full blur-[20px] opacity-70 animate-pulse"></div>
+            <div class="absolute -top-1 right-0 w-11 h-11 animate-[spin_15s_linear_infinite]">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-md">
+                    <path d="M12 2V4M12 20V22M4 12H2M22 12H20M4.92893 4.92893L6.34315 6.34315M17.6569 17.6569L19.0711 19.0711M4.92893 19.0711L6.34315 17.6569M17.6569 6.34315L19.0711 4.92893" stroke="url(#part-sun)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="12" r="5" fill="#F59E0B" />
+                    <defs>
+                        <linearGradient id="part-sun" x1="12" y1="2" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#FCD34D"/>
+                            <stop offset="1" stop-color="#EA580C"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <div class="absolute bottom-0 left-0 w-14 h-14 animate-[bounce_4s_ease-in-out_infinite]">
+                <svg viewBox="0 0 24 24" fill="none" class="w-full h-full drop-shadow-xl">
+                    <path d="M17.5 19C19.9853 19 22 16.9853 22 14.5C22 12.1325 20.176 10.2039 17.8524 10.0166C17.382 6.61868 14.466 4 11 4C7.13401 4 4 7.13401 4 11C4 11.2335 4.01138 11.464 4.03358 11.691C1.7611 12.246 0 14.2831 0 16.75C0 19.6495 2.35051 22 5.25 22H17.5V19Z" fill="url(#part-cloud)" stroke="#ffffff" stroke-width="0.5"/>
+                    <defs>
+                        <linearGradient id="part-cloud" x1="11" y1="4" x2="11" y2="22" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#ffffff"/>
+                            <stop offset="1" stop-color="#f3f4f6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+        `;
+
+        // Dummy Data for fallback if local server is unreachable
+        const dummyFallbackData = {
+            "Expected_Score_0_100": 88.01874,
+            "Confidence": 0.9301,
+            "metadata": {
+                "reasoning": "The description states the context clearly but lacks strict technical mapping rules.",
+                "who": { "identified": false, "evidence": "nan" },
+                "what": {
+                    "identified": true,
+                    "category": "enhance",
+                    "intent_evidence": "add a new column in the Project class",
+                    "the_level_of_details_in_intent": "cloudy" 
+                },
+                "why": { "identified": true, "value_evidence": "store an object" },
+                "customer_impact": { "identified": false, "impact_evidence": "nan" },
+                "ac_defined": {
+                    "presence_ac": false,
+                    "english_text_feedback": "The text i",
+                    "overal_feedback": "The description lacks explicit acceptance criteria formatted correctly."
+                },
+                "grooming_questions": [
+                    "What should be the exact name of the column?",
+                    "What data type should it be?",
+                    "Are there any schema changes required downstream?"
+                ],
+                "agile_standard": "True"
+            },
+            "STORY_QUALITY_INDEX": 3.0 // You can test with 4.0 or 1.5 to see emojis change
+        };
+
+        async function analyzeText() {
+            const text = document.getElementById('inputText').value;
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingIcon = document.getElementById('loadingIcon');
+            const resultArea = document.getElementById('resultArea');
+            const errorArea = document.getElementById('errorArea');
+            const errorText = document.getElementById('errorText');
+
+            errorArea.classList.add('hidden');
+            resultArea.classList.add('hidden');
+
+            if (!text.trim()) {
+                errorText.textContent = "System Message: Input field cannot be empty.";
+                errorArea.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.textContent = "Processing...";
+            loadingIcon.classList.remove('hidden');
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+
+            try {
+                // Requesting local API
+                const response = await fetch('http://127.0.0.1:8000/live_infer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (!response.ok) throw new Error(`Server error: ${response.status}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                
+                populateUI(data);
+
+            } catch (error) {
+                console.warn("Local API not reached, using dummy fallback data for demonstration.", error);
+                
+                // --- TEST MODE --- 
+                // Toggle between 'sunny', 'cloudy', and 'sun_clould' below to preview the new animations
+                const randomTestState = ['sunny', 'cloudy', 'sun_clould'][Math.floor(Math.random() * 3)];
+                dummyFallbackData.metadata.what.the_level_of_details_in_intent = randomTestState; 
+                
+                populateUI(dummyFallbackData); // Inject dummy data if local fetch fails
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btnText.textContent = "Analyze Quality";
+                    loadingIcon.classList.add('hidden');
+                    btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                }, 500);
+            }
+        }
+
+        function populateUI(data) {
+            const meta = data.metadata;
+
+            // 1. Expected Score & Confidence & English Feedback
+            document.getElementById('scoreValue').textContent = Math.round(data.Expected_Score_0_100);
+            document.getElementById('confidencePill').textContent = `Confidence: ${(data.Confidence * 100).toFixed(1)}%`;
+            // Add the new field data
+            document.getElementById('englishTextFeedback').textContent = meta.ac_defined?.english_text_feedback || "";
+
+            // 2. Stars rendering (1 to 5)
+            const rating = data.STORY_QUALITY_INDEX || 0;
+            document.getElementById('overallRatingNum').textContent = `${rating.toFixed(1)} out of 5.0`;
+            
+            let starsHtml = '';
+            for(let i=1; i<=5; i++) {
+                if(rating >= i) {
+                    starsHtml += `<i data-lucide="star" class="fill-current w-6 h-6 text-yellow-400 drop-shadow-sm"></i>`;
+                } else if(rating >= i - 0.5) {
+                    starsHtml += `<i data-lucide="star-half" class="fill-current w-6 h-6 text-yellow-400 drop-shadow-sm"></i>`;
+                } else {
+                    starsHtml += `<i data-lucide="star" class="w-6 h-6 text-gray-200 drop-shadow-sm"></i>`;
+                }
+            }
+            document.getElementById('starContainer').innerHTML = starsHtml;
+
+            // --- ADDED DYNAMIC EMOJI LOGIC HERE ---
+            const ratingEmoji = document.getElementById('ratingEmoji');
+            if (rating >= 3.5) {
+                // Happy / Thumbs Up emoji (URL for preview)
+                ratingEmoji.src = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Smiling%20Face%20with%20Smiling%20Eyes.png";
+            } else if (rating >= 2.5) {
+                // Neutral emoji (URL for preview)
+                ratingEmoji.src = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Neutral%20Face.png";
+            } else {
+                // Sad emoji (URL for preview)
+                ratingEmoji.src = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Frowning%20Face.png";
+            }
+            ratingEmoji.classList.remove('hidden');
+            // --------------------------------------
+
+            // 3. Who, What, Why
+            const setStatus = (elemId, isIdentified) => {
+                const el = document.getElementById(elemId);
+                el.textContent = isIdentified ? "Identified" : "Not Found";
+                el.className = isIdentified ? "text-green-600 font-medium" : "text-red-500 font-medium";
+            };
+
+            setStatus('whoStatus', meta.who.identified);
+            document.getElementById('whoRole').textContent = meta.who.evidence !== "nan" ? meta.who.evidence : "N/A";
+
+            setStatus('whatStatus', meta.what.identified);
+            document.getElementById('whatCategory').textContent = meta.what.category || "N/A";
+            document.getElementById('whatIntent').textContent = meta.what.intent_evidence !== "nan" ? meta.what.intent_evidence : "N/A";
+
+            setStatus('whyStatus', meta.why.identified);
+            document.getElementById('whyImpact').textContent = meta.customer_impact.identified ? "Yes" : "Not Explicit";
+            document.getElementById('whyValue').textContent = meta.why.value_evidence !== "nan" ? meta.why.value_evidence : "N/A";
+
+            // 4. Compliance Checks
+            const acCheck = document.getElementById('acDefinedCheck');
+            if(meta.ac_defined.presence_ac) {
+                acCheck.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-700"></i>`;
+                acCheck.className = "p-1.5 rounded-full bg-green-100";
+            } else {
+                acCheck.innerHTML = `<i data-lucide="x" class="w-4 h-4 text-red-700"></i>`;
+                acCheck.className = "p-1.5 rounded-full bg-red-100";
+            }
+
+            const agileCheck = document.getElementById('agileFormatCheck');
+            if(meta.agile_standard === "True" || meta.agile_standard === true) {
+                agileCheck.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-700"></i>`;
+                agileCheck.className = "p-1.5 rounded-full bg-green-100";
+            } else {
+                agileCheck.innerHTML = `<i data-lucide="x" class="w-4 h-4 text-red-700"></i>`;
+                agileCheck.className = "p-1.5 rounded-full bg-red-100";
+            }
+
+            // 5. Scope Shape (sunny, cloudy, sun_clould)
+            const level = meta.what.the_level_of_details_in_intent;
+            const shapeContainer = document.getElementById('scopeShapeContainer');
+            const shapeText = document.getElementById('scopeShapeText');
+
+            if (level === 'sunny') {
+                shapeContainer.innerHTML = SHAPE_SUNNY;
+                shapeText.textContent = "In Details / Clear";
+            } else if (level === 'cloudy') {
+                shapeContainer.innerHTML = SHAPE_CLOUDY;
+                shapeText.textContent = "Cloudy / Vague";
+            } else if (level === 'sun_clould') {
+                shapeContainer.innerHTML = SHAPE_SUN_CLOUD;
+                shapeText.textContent = "Partially Clear";
+            } else {
+                shapeContainer.innerHTML = `<div class="w-8 h-8 rounded-full bg-gray-200"></div>`;
+                shapeText.textContent = "Unknown";
+            }
+
+            // 6. Clarification List
+            const listContainer = document.getElementById('clarificationList');
+            if(meta.grooming_questions && meta.grooming_questions.length > 0) {
+                listContainer.innerHTML = meta.grooming_questions.map((q, idx) => `
+                    <li class="flex gap-3 text-sm text-blue-900 bg-white/60 p-3 rounded-lg border border-blue-100 shadow-sm">
+                        <span class="font-bold text-blue-500">${idx + 1}.</span>
+                        <span>${q}</span>
+                    </li>
+                `).join('');
+            } else {
+                listContainer.innerHTML = `<li class="text-sm text-gray-500 p-2">No clarification questions generated.</li>`;
+            }
+
+            // 7. AI Summary
+            let summaryContent = meta.reasoning || "";
+            if (meta.ac_defined && meta.ac_defined.overal_feedback) {
+                summaryContent += " <br><br>" + meta.ac_defined.overal_feedback;
+            }
+            document.getElementById('aiSummaryText').innerHTML = summaryContent || "No detailed summary available.";
+
+            // Show Results
+            document.getElementById('resultArea').classList.remove('hidden');
+            
+            // Re-initialize icons inside new HTML
+            lucide.createIcons();
+            
+            // Smooth Scroll
+            setTimeout(() => {
+                document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    </script>
+</body>
+</html>
