@@ -1,38 +1,29 @@
 import os
+import uuid
 import ssl
 import logging
+import asyncio
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
 import httpx
 import truststore
 from openai import AsyncOpenAI
+from token_jwt import get_token
 
-# Enterprise SSL Setup
 truststore.inject_into_ssl()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------
-# 1. Structured State Definition
-# ---------------------------------------------------------
 class TicketEvaluation(BaseModel):
-    has_what: bool = Field(description="Is the core action/intent clearly defined?")
-    has_who: bool = Field(description="Is the target persona/user/system defined?")
-    has_why: bool = Field(description="Is the business value or reason defined?")
-    has_ac: bool = Field(description="Are there clear, testable Acceptance Criteria?")
-    
-    is_ready_for_refinement: bool = Field(
-        description="True ONLY if what, who, why, and ac are ALL True."
-    )
-    missing_elements_feedback: str = Field(
-        description="A concise, direct question asking the user for exactly what is missing. Empty if ready."
-    )
+    has_what: bool
+    has_who: bool
+    has_why: bool
+    has_ac: bool
+    is_ready_for_refinement: bool
+    missing_elements_feedback: str
 
-# ---------------------------------------------------------
-# 2. Singleton Client (From Previous Architecture)
-# ---------------------------------------------------------
 class LLMClientManager:
     _instance: Optional[AsyncOpenAI] = None
 
@@ -41,112 +32,77 @@ class LLMClientManager:
         if cls._instance is None:
             ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             httpx_client = httpx.AsyncClient(
-                http2=True, verify=ctx, timeout=httpx.Timeout(60.0, connect=5.0)
+                http2=True,
+                verify=ctx,
+                timeout=httpx.Timeout(90.0, connect=5.0),
+                limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
             )
             cls._instance = AsyncOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY", "dummy"),
+                api_key=os.getenv("OPENAI_API_KEY", "dummy_key"),
                 http_client=httpx_client,
-                base_url=os.getenv("ENTERPRISE_LLM_BASE_URL", "https://api.enterprise.com/v1"),
-                max_retries=2
+                base_url=os.getenv("ENTERPRISE_LLM_BASE_URL", "https://api.enterprise.com/v1")
             )
         return cls._instance
 
-# ---------------------------------------------------------
-# 3. Interactive Agent Class
-# ---------------------------------------------------------
 class JiraRefinementAgent:
-    def __init__(self, model_name: str = "gpt-4o-2024-08-06"):
+    def __init__(self, model_name: str = None):
         self.client = LLMClientManager.get_client()
-        self.model = model_name
+        self.model = model_name or os.getenv("ENTERPRISE_MODEL_NAME", "gpt-4o")
         self.messages: List[dict] = [
             {
                 "role": "system",
-                "content": (
-                    "You are a strict Lead Agile TPM. Your goal is to help the user write a "
-                    "perfect Jira ticket. A perfect ticket MUST have: Who, What, Why, and Acceptance Criteria (AC). "
-                    "Analyze the conversation. If elements are missing, ask direct technical questions to get them. "
-                    "Do not accept vague answers."
-                )
+                "content": "Lead Agile TPM. Analyze Jira tickets for Who, What, Why, and AC. Ask for missing info. If complete, rewrite as professional Markdown."
             }
         ]
-        self.max_turns = 5 # Prevent infinite loops in production
+
+    async def get_headers(self):
+        return {
+            "X-HSBC-E2E-Trust-Token": get_token(),
+            "x-correlation-id": str(uuid.uuid4()),
+            "x-usersession-id": str(uuid.uuid4())
+        }
 
     async def evaluate_state(self) -> TicketEvaluation:
-        """Evaluates the current context to check if the ticket has all required parts."""
-        try:
-            completion = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                messages=self.messages,
-                response_format=TicketEvaluation,
-                temperature=0.0
-            )
-            return completion.choices[0].message.parsed
-        except Exception as e:
-            logger.error(f"Evaluation failed: {e}")
-            raise
+        headers = await self.get_headers()
+        completion = await self.client.beta.chat.completions.parse(
+            model=self.model,
+            messages=self.messages,
+            response_format=TicketEvaluation,
+            temperature=0.0,
+            extra_headers=headers
+        )
+        return completion.choices[0].message.parsed
 
     async def generate_final_ticket(self) -> str:
-        """Generates the final formatted Jira ticket once all conditions are met."""
-        prompt = {
-            "role": "user",
-            "content": "All requirements met. Rewrite the entire context into a professional, enterprise-grade Jira Description using Markdown."
-        }
-        self.messages.append(prompt)
-        
+        headers = await self.get_headers()
+        self.messages.append({"role": "user", "content": "Generate final Jira description."})
         completion = await self.client.chat.completions.create(
             model=self.model,
             messages=self.messages,
-            temperature=0.2
+            temperature=0.2,
+            extra_headers=headers
         )
         return completion.choices[0].message.content
 
-    async def run(self, initial_draft: str):
-        """Main agent loop."""
-        print(f"\n[Agent]: Analyzing initial draft...\n")
-        self.messages.append({"role": "user", "content": initial_draft})
-
-        turns = 0
-        while turns < self.max_turns:
+    async def run(self, initial_input: str):
+        self.messages.append({"role": "user", "content": initial_input})
+        
+        for _ in range(5):
             state = await self.evaluate_state()
             
-            # Append model's internal reasoning (optional, but good for context mapping)
-            self.messages.append({
-                "role": "assistant",
-                "content": state.missing_elements_feedback if not state.is_ready_for_refinement else "Ready for refinement."
-            })
-
             if state.is_ready_for_refinement:
-                print("[Agent]: All elements present. Generating final Enterprise Jira Ticket...\n")
-                print("-" * 50)
-                final_ticket = await self.generate_final_ticket()
-                print(final_ticket)
-                print("-" * 50)
+                final_output = await self.generate_final_ticket()
+                print(f"\nFINAL TICKET:\n{final_output}")
                 return
 
-            # Ask user for missing info
-            print(f"[Agent]: {state.missing_elements_feedback}")
-            user_input = input("You (Provide missing details or type 'exit'): ")
+            print(f"\nAGENT: {state.missing_elements_feedback}")
+            user_response = input("USER: ")
             
-            if user_input.lower() in ['exit', 'quit']:
-                print("[Agent]: Aborting refinement process.")
-                return
+            if user_response.lower() in ['exit', 'quit']:
+                break
                 
-            self.messages.append({"role": "user", "content": user_input})
-            turns += 1
+            self.messages.append({"role": "user", "content": user_response})
 
-        print("\n[Agent]: Max iterations reached. Please start over with a more detailed draft.")
-
-# ---------------------------------------------------------
-# Usage
-# ---------------------------------------------------------
 if __name__ == "__main__":
-    import asyncio
-    
-    async def main():
-        agent = JiraRefinementAgent()
-        draft = "We need to migrate the auth service to Keycloak."
-        print(f"Original Draft: {draft}")
-        await agent.run(draft)
-
-    # Use asyncio.run(main()) in standard execution
-    asyncio.run(main())
+    agent = JiraRefinementAgent()
+    asyncio.run(agent.run("We need to update the database schema for the user service."))
