@@ -1,0 +1,121 @@
+import os
+import logging
+from typing import List, Literal, Optional
+from pydantic import BaseModel, Field
+import openai
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ==========================================
+# 1. Pydantic Schemas (Strict Structured Outputs)
+# ==========================================
+class AnalyzerOutput(BaseModel):
+    who_identified: bool = Field(description="Is the actor (who) clearly defined?")
+    what_status: Literal["clear", "cloudy", "missing"] = Field(description="Clarity of the core action/intent.")
+    why_identified: bool = Field(description="Is the business value (why) explicitly stated?")
+    ac_defined: bool = Field(description="Are there explicit acceptance criteria?")
+
+class AgileTicket(BaseModel):
+    title: str = Field(description="Standardized ticket title e.g., [Feature] ...")
+    user_story: str = Field(description="As a [who], I want [what], so that [why]")
+    acceptance_criteria: List[str] = Field(description="BDD format (Given/When/Then)")
+    technical_notes: List[str] = Field(description="Extracted tech stacks, DBs, constraints")
+
+# ==========================================
+# 2. Stateful Agent Class
+# ==========================================
+class JiraAgileAgent:
+    def __init__(self, client: openai.OpenAI, max_turns: int = 3):
+        self.client = client
+        self.max_turns = max_turns
+        self.turn_count = 0
+        self.history = []
+        self.model_name = os.getenv("ENTERPRISE_MODEL_NAME", "gpt-4o")
+
+    def _analyze_context(self) -> AnalyzerOutput:
+        """ """
+        system_prompt = (
+            "You are a strict technical analyzer. Read the conversation history and determine "
+            "if the core Agile components (Who, What, Why, Acceptance Criteria) are currently known."
+        )
+        messages = [{"role": "system", "content": system_prompt}] + self.history
+
+        response = self.client.beta.chat.completions.parse(
+            model=self.model_name,
+            messages=messages,
+            response_format=AnalyzerOutput,
+            temperature=0.0
+        )
+        return response.choices[0].message.parsed
+
+    def _rewrite_ticket(self) -> AgileTicket:
+        """ """
+        system_prompt = (
+            "You are a Lead Agile Technical Product Manager. "
+            "Rewrite the gathered requirements into a strict Agile Jira ticket. "
+            "DO NOT hallucinate missing details. Use '[TBD]' if something is still missing."
+        )
+        messages = [{"role": "system", "content": system_prompt}] + self.history
+
+        response = self.client.beta.chat.completions.parse(
+            model=self.model_name,
+            messages=messages,
+            response_format=AgileTicket,
+            temperature=0.0
+        )
+        return response.choices[0].message.parsed
+
+    def process_input(self, user_text: str) -> dict:
+        """
+        """
+        self.history.append({"role": "user", "content": user_text})
+        self.turn_count += 1
+
+        analysis = self._analyze_context()
+        missing_questions = []
+
+        if analysis.what_status == "missing":
+            missing_questions.append("What is your primary intent? The core action is missing.")
+        if not analysis.why_identified:
+            missing_questions.append("What is the business value? Why are we doing this?")
+        if not analysis.who_identified:
+            missing_questions.append("Who is the primary actor or system triggering this?")
+        if not analysis.ac_defined:
+            missing_questions.append("What is your acceptance criteria? How do we know this is done?")
+
+        if missing_questions and self.turn_count <= self.max_turns:
+            ai_response = " ".join(missing_questions)
+            self.history.append({"role": "assistant", "content": ai_response})
+            return {
+                "status": "clarification_needed",
+                "message": ai_response,
+                "turn": self.turn_count
+            }
+        
+        logger.info("Information complete or Max Turns reached. Generating final ticket.")
+        final_ticket = self._rewrite_ticket()
+        return {
+            "status": "completed",
+            "ticket": final_ticket.model_dump(),
+            "turn": self.turn_count
+        }
+
+# ==========================================
+# 3. Execution Mockup
+# ==========================================
+if __name__ == "__main__":
+    
+    import mock
+    mock_client = mock.Mock() 
+    
+    agent = JiraAgileAgent(client=mock_client, max_turns=3)
+    
+    response = agent.process_input("We need to move Redis to AWS ElastiCache.")
+    print(response)
+    
+    # response = agent.process_input("The intent is to reduce latency. Devops team is doing it.")
+    # print(response)
+    
+    # response = agent.process_input("AC is: Redis is on AWS and latency is under 5ms.")
+    # print(response)
