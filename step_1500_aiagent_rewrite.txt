@@ -1,108 +1,194 @@
-import os
 import uuid
 import ssl
-import logging
-import asyncio
-from typing import List, Optional
-from pydantic import BaseModel, Field
-
+import json
 import httpx
 import truststore
-from openai import AsyncOpenAI
+import openai
+
+from typing import List
+from pydantic import BaseModel, Field
 from token_jwt import get_token
 
-truststore.inject_into_ssl()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# =========================================================
+# Enterprise Connection Setup
+# =========================================================
 
-class TicketEvaluation(BaseModel):
-    has_what: bool
-    has_who: bool
-    has_why: bool
-    has_ac: bool
-    is_ready_for_refinement: bool
-    missing_elements_feedback: str
+jwt = get_token()
 
-class LLMClientManager:
-    _instance: Optional[AsyncOpenAI] = None
+BASE_URL = "Link"
+USER_ID = "UC1939194"
+MODEL = "GPT-4.1"
 
-    @classmethod
-    def get_client(cls) -> AsyncOpenAI:
-        if cls._instance is None:
-            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            httpx_client = httpx.AsyncClient(
-                http2=True,
-                verify=ctx,
-                timeout=httpx.Timeout(90.0, connect=5.0),
-                limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
-            )
-            cls._instance = AsyncOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY", "dummy_key"),
-                http_client=httpx_client,
-                base_url=os.getenv("ENTERPRISE_LLM_BASE_URL", "https://api.enterprise.com/v1")
-            )
-        return cls._instance
+ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
-class JiraRefinementAgent:
-    def __init__(self, model_name: str = None):
-        self.client = LLMClientManager.get_client()
-        self.model = model_name or os.getenv("ENTERPRISE_MODEL_NAME", "gpt-4o")
-        self.messages: List[dict] = [
+httpx_client = httpx.Client(
+    http2=True,
+    verify=ctx,
+    timeout=60
+)
+
+default_headers = {
+    "Content-Type": "application/json",
+    "x-correlation-id": str(uuid.uuid4()),
+    "x-usersession-id": str(uuid.uuid4())
+}
+
+client = openai.OpenAI(
+    api_key="test",
+    http_client=httpx_client,
+    base_url=BASE_URL,
+    default_headers=default_headers
+)
+
+extra_headers = {
+    "X-HSBC-E2E-Trust-Token": jwt
+}
+
+
+# =========================================================
+# Structured Schema
+# =========================================================
+
+class Analysis(BaseModel):
+    who: bool = Field(description="Is the actor identified")
+    what: bool = Field(description="Is the task clearly defined")
+    why: bool = Field(description="Is the business value explained")
+    ac: bool = Field(description="Are acceptance criteria present")
+
+
+class AgentOutput(BaseModel):
+    rewritten_story: str
+    analysis: Analysis
+    missing_items: List[str]
+    follow_up_questions: List[str]
+
+
+# =========================================================
+# LLM Call
+# =========================================================
+
+def call_llm(prompt: str) -> str:
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        user=USER_ID,
+        extra_headers=extra_headers,
+        messages=[
             {
                 "role": "system",
-                "content": "Lead Agile TPM. Analyze Jira tickets for Who, What, Why, and AC. Ask for missing info. If complete, rewrite as professional Markdown."
-            }
-        ]
+                "content": (
+                    "You are an Agile expert helping refine Jira tickets. "
+                    "Check if WHO, WHAT, WHY and Acceptance Criteria exist. "
+                    "Rewrite the story clearly and ask for missing parts."
+                )
+            },
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=800,
+        temperature=0
+    )
 
-    async def get_headers(self):
-        return {
-            "X-HSBC-E2E-Trust-Token": get_token(),
-            "x-correlation-id": str(uuid.uuid4()),
-            "x-usersession-id": str(uuid.uuid4())
-        }
+    return response.choices[0].message.content
 
-    async def evaluate_state(self) -> TicketEvaluation:
-        headers = await self.get_headers()
-        completion = await self.client.beta.chat.completions.parse(
-            model=self.model,
-            messages=self.messages,
-            response_format=TicketEvaluation,
-            temperature=0.0,
-            extra_headers=headers
-        )
-        return completion.choices[0].message.parsed
 
-    async def generate_final_ticket(self) -> str:
-        headers = await self.get_headers()
-        self.messages.append({"role": "user", "content": "Generate final Jira description."})
-        completion = await self.client.chat.completions.create(
-            model=self.model,
-            messages=self.messages,
-            temperature=0.2,
-            extra_headers=headers
-        )
-        return completion.choices[0].message.content
+# =========================================================
+# Prompt Builder
+# =========================================================
 
-    async def run(self, initial_input: str):
-        self.messages.append({"role": "user", "content": initial_input})
-        
-        for _ in range(5):
-            state = await self.evaluate_state()
-            
-            if state.is_ready_for_refinement:
-                final_output = await self.generate_final_ticket()
-                print(f"\nFINAL TICKET:\n{final_output}")
-                return
+def build_prompt(text: str) -> str:
 
-            print(f"\nAGENT: {state.missing_elements_feedback}")
-            user_response = input("USER: ")
-            
-            if user_response.lower() in ['exit', 'quit']:
-                break
-                
-            self.messages.append({"role": "user", "content": user_response})
+    return f"""
+Analyze the following Jira description.
+
+Check presence of:
+WHO
+WHAT
+WHY
+ACCEPTANCE CRITERIA
+
+Then rewrite the story.
+
+Return JSON:
+
+{{
+ "rewritten_story": "...",
+ "analysis": {{
+  "who": true/false,
+  "what": true/false,
+  "why": true/false,
+  "ac": true/false
+ }},
+ "missing_items": [],
+ "follow_up_questions": []
+}}
+
+Jira text:
+{text}
+"""
+
+
+# =========================================================
+# Agent Logic
+# =========================================================
+
+def run_agent():
+
+    print("\nJira AI Agent started\n")
+
+    description = input("Paste Jira description:\n")
+
+    prompt = build_prompt(description)
+
+    result = call_llm(prompt)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        print("\nModel returned non-JSON output\n")
+        print(result)
+        return
+
+    print("\n--- Rewritten Story ---\n")
+    print(data["rewritten_story"])
+
+    print("\n--- Analysis ---\n")
+    print(json.dumps(data["analysis"], indent=2))
+
+    if data["missing_items"]:
+        print("\nMissing Elements:")
+        for m in data["missing_items"]:
+            print("-", m)
+
+    if data["follow_up_questions"]:
+        print("\nQuestions for User:")
+        for q in data["follow_up_questions"]:
+            print("-", q)
+
+    # Interaction loop
+    while data["missing_items"]:
+
+        print("\nPlease answer the questions above.\n")
+        user_update = input("Your update:\n")
+
+        description = description + "\n" + user_update
+
+        prompt = build_prompt(description)
+
+        result = call_llm(prompt)
+        data = json.loads(result)
+
+        print("\nUpdated Story:\n")
+        print(data["rewritten_story"])
+
+        if not data["missing_items"]:
+            print("\nStory is now complete.\n")
+            break
+
+
+# =========================================================
+# Run
+# =========================================================
 
 if __name__ == "__main__":
-    agent = JiraRefinementAgent()
-    asyncio.run(agent.run("We need to update the database schema for the user service."))
+    run_agent()
