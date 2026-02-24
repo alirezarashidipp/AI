@@ -1,121 +1,152 @@
 import os
+import ssl
 import logging
-from typing import List, Literal, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
-import openai
+
+import httpx
+import truststore
+from openai import AsyncOpenAI
+
+# Enterprise SSL Setup
+truststore.inject_into_ssl()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ==========================================
-# 1. Pydantic Schemas (Strict Structured Outputs)
-# ==========================================
-class AnalyzerOutput(BaseModel):
-    who_identified: bool = Field(description="Is the actor (who) clearly defined?")
-    what_status: Literal["clear", "cloudy", "missing"] = Field(description="Clarity of the core action/intent.")
-    why_identified: bool = Field(description="Is the business value (why) explicitly stated?")
-    ac_defined: bool = Field(description="Are there explicit acceptance criteria?")
+# ---------------------------------------------------------
+# 1. Structured State Definition
+# ---------------------------------------------------------
+class TicketEvaluation(BaseModel):
+    has_what: bool = Field(description="Is the core action/intent clearly defined?")
+    has_who: bool = Field(description="Is the target persona/user/system defined?")
+    has_why: bool = Field(description="Is the business value or reason defined?")
+    has_ac: bool = Field(description="Are there clear, testable Acceptance Criteria?")
+    
+    is_ready_for_refinement: bool = Field(
+        description="True ONLY if what, who, why, and ac are ALL True."
+    )
+    missing_elements_feedback: str = Field(
+        description="A concise, direct question asking the user for exactly what is missing. Empty if ready."
+    )
 
-class AgileTicket(BaseModel):
-    title: str = Field(description="Standardized ticket title e.g., [Feature] ...")
-    user_story: str = Field(description="As a [who], I want [what], so that [why]")
-    acceptance_criteria: List[str] = Field(description="BDD format (Given/When/Then)")
-    technical_notes: List[str] = Field(description="Extracted tech stacks, DBs, constraints")
+# ---------------------------------------------------------
+# 2. Singleton Client (From Previous Architecture)
+# ---------------------------------------------------------
+class LLMClientManager:
+    _instance: Optional[AsyncOpenAI] = None
 
-# ==========================================
-# 2. Stateful Agent Class
-# ==========================================
-class JiraAgileAgent:
-    def __init__(self, client: openai.OpenAI, max_turns: int = 3):
-        self.client = client
-        self.max_turns = max_turns
-        self.turn_count = 0
-        self.history = []
-        self.model_name = os.getenv("ENTERPRISE_MODEL_NAME", "gpt-4o")
+    @classmethod
+    def get_client(cls) -> AsyncOpenAI:
+        if cls._instance is None:
+            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            httpx_client = httpx.AsyncClient(
+                http2=True, verify=ctx, timeout=httpx.Timeout(60.0, connect=5.0)
+            )
+            cls._instance = AsyncOpenAI(
+                api_key=os.getenv("OPENAI_API_KEY", "dummy"),
+                http_client=httpx_client,
+                base_url=os.getenv("ENTERPRISE_LLM_BASE_URL", "https://api.enterprise.com/v1"),
+                max_retries=2
+            )
+        return cls._instance
 
-    def _analyze_context(self) -> AnalyzerOutput:
-        """ """
-        system_prompt = (
-            "You are a strict technical analyzer. Read the conversation history and determine "
-            "if the core Agile components (Who, What, Why, Acceptance Criteria) are currently known."
-        )
-        messages = [{"role": "system", "content": system_prompt}] + self.history
-
-        response = self.client.beta.chat.completions.parse(
-            model=self.model_name,
-            messages=messages,
-            response_format=AnalyzerOutput,
-            temperature=0.0
-        )
-        return response.choices[0].message.parsed
-
-    def _rewrite_ticket(self) -> AgileTicket:
-        """ """
-        system_prompt = (
-            "You are a Lead Agile Technical Product Manager. "
-            "Rewrite the gathered requirements into a strict Agile Jira ticket. "
-            "DO NOT hallucinate missing details. Use '[TBD]' if something is still missing."
-        )
-        messages = [{"role": "system", "content": system_prompt}] + self.history
-
-        response = self.client.beta.chat.completions.parse(
-            model=self.model_name,
-            messages=messages,
-            response_format=AgileTicket,
-            temperature=0.0
-        )
-        return response.choices[0].message.parsed
-
-    def process_input(self, user_text: str) -> dict:
-        """
-        """
-        self.history.append({"role": "user", "content": user_text})
-        self.turn_count += 1
-
-        analysis = self._analyze_context()
-        missing_questions = []
-
-        if analysis.what_status == "missing":
-            missing_questions.append("What is your primary intent? The core action is missing.")
-        if not analysis.why_identified:
-            missing_questions.append("What is the business value? Why are we doing this?")
-        if not analysis.who_identified:
-            missing_questions.append("Who is the primary actor or system triggering this?")
-        if not analysis.ac_defined:
-            missing_questions.append("What is your acceptance criteria? How do we know this is done?")
-
-        if missing_questions and self.turn_count <= self.max_turns:
-            ai_response = " ".join(missing_questions)
-            self.history.append({"role": "assistant", "content": ai_response})
-            return {
-                "status": "clarification_needed",
-                "message": ai_response,
-                "turn": self.turn_count
+# ---------------------------------------------------------
+# 3. Interactive Agent Class
+# ---------------------------------------------------------
+class JiraRefinementAgent:
+    def __init__(self, model_name: str = "gpt-4o-2024-08-06"):
+        self.client = LLMClientManager.get_client()
+        self.model = model_name
+        self.messages: List[dict] = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a strict Lead Agile TPM. Your goal is to help the user write a "
+                    "perfect Jira ticket. A perfect ticket MUST have: Who, What, Why, and Acceptance Criteria (AC). "
+                    "Analyze the conversation. If elements are missing, ask direct technical questions to get them. "
+                    "Do not accept vague answers."
+                )
             }
-        
-        logger.info("Information complete or Max Turns reached. Generating final ticket.")
-        final_ticket = self._rewrite_ticket()
-        return {
-            "status": "completed",
-            "ticket": final_ticket.model_dump(),
-            "turn": self.turn_count
-        }
+        ]
+        self.max_turns = 5 # Prevent infinite loops in production
 
-# ==========================================
-# 3. Execution Mockup
-# ==========================================
+    async def evaluate_state(self) -> TicketEvaluation:
+        """Evaluates the current context to check if the ticket has all required parts."""
+        try:
+            completion = await self.client.beta.chat.completions.parse(
+                model=self.model,
+                messages=self.messages,
+                response_format=TicketEvaluation,
+                temperature=0.0
+            )
+            return completion.choices[0].message.parsed
+        except Exception as e:
+            logger.error(f"Evaluation failed: {e}")
+            raise
+
+    async def generate_final_ticket(self) -> str:
+        """Generates the final formatted Jira ticket once all conditions are met."""
+        prompt = {
+            "role": "user",
+            "content": "All requirements met. Rewrite the entire context into a professional, enterprise-grade Jira Description using Markdown."
+        }
+        self.messages.append(prompt)
+        
+        completion = await self.client.chat.completions.create(
+            model=self.model,
+            messages=self.messages,
+            temperature=0.2
+        )
+        return completion.choices[0].message.content
+
+    async def run(self, initial_draft: str):
+        """Main agent loop."""
+        print(f"\n[Agent]: Analyzing initial draft...\n")
+        self.messages.append({"role": "user", "content": initial_draft})
+
+        turns = 0
+        while turns < self.max_turns:
+            state = await self.evaluate_state()
+            
+            # Append model's internal reasoning (optional, but good for context mapping)
+            self.messages.append({
+                "role": "assistant",
+                "content": state.missing_elements_feedback if not state.is_ready_for_refinement else "Ready for refinement."
+            })
+
+            if state.is_ready_for_refinement:
+                print("[Agent]: All elements present. Generating final Enterprise Jira Ticket...\n")
+                print("-" * 50)
+                final_ticket = await self.generate_final_ticket()
+                print(final_ticket)
+                print("-" * 50)
+                return
+
+            # Ask user for missing info
+            print(f"[Agent]: {state.missing_elements_feedback}")
+            user_input = input("You (Provide missing details or type 'exit'): ")
+            
+            if user_input.lower() in ['exit', 'quit']:
+                print("[Agent]: Aborting refinement process.")
+                return
+                
+            self.messages.append({"role": "user", "content": user_input})
+            turns += 1
+
+        print("\n[Agent]: Max iterations reached. Please start over with a more detailed draft.")
+
+# ---------------------------------------------------------
+# Usage
+# ---------------------------------------------------------
 if __name__ == "__main__":
+    import asyncio
     
-    import mock
-    mock_client = mock.Mock() 
-    
-    agent = JiraAgileAgent(client=mock_client, max_turns=3)
-    
-    response = agent.process_input("We need to move Redis to AWS ElastiCache.")
-    print(response)
-    
-    # response = agent.process_input("The intent is to reduce latency. Devops team is doing it.")
-    # print(response)
-    
-    # response = agent.process_input("AC is: Redis is on AWS and latency is under 5ms.")
-    # print(response)
+    async def main():
+        agent = JiraRefinementAgent()
+        draft = "We need to migrate the auth service to Keycloak."
+        print(f"Original Draft: {draft}")
+        await agent.run(draft)
+
+    # Use asyncio.run(main()) in standard execution
+    asyncio.run(main())
