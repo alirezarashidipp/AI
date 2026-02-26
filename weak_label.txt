@@ -1,0 +1,72 @@
+import pandas as pd
+from openai import OpenAI
+from pydantic import BaseModel
+from typing import Literal
+
+# ----------------------------
+# Config
+# ----------------------------
+MODEL = "gpt-4.1-mini"
+INPUT_FILE = "jira_input.csv"
+OUTPUT_FILE = "jira_labeled.csv"
+
+client = OpenAI()
+
+# ----------------------------
+# Schema
+# ----------------------------
+class PlainnessScore(BaseModel):
+    label: Literal[0,1,2]
+
+# ----------------------------
+# Prompt
+# ----------------------------
+SYSTEM_PROMPT = """
+You evaluate how plain and clear a Jira description is.
+
+Focus ONLY on language clarity.
+
+Do NOT evaluate Agile completeness.
+
+Score:
+0 = Very vague or unclear
+1 = Understandable but not very clear
+2 = Very clear and easy to read
+
+Return only the label.
+"""
+
+def classify(text: str):
+
+    response = client.responses.parse(
+        model=MODEL,
+        temperature=0,
+        input=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": text}
+        ],
+        response_format=PlainnessScore
+    )
+
+    return response.output_parsed.label
+
+
+# ----------------------------
+# Main
+# ----------------------------
+df = pd.read_csv(INPUT_FILE)
+
+labels = []
+
+for text in df["clean_jira_desription"]:
+    try:
+        label = classify(text)
+    except Exception:
+        label = None
+    labels.append(label)
+
+df["LLM_LABEL"] = labels
+
+df.to_csv(OUTPUT_FILE, index=False)
+
+print("done")
