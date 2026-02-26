@@ -1,0 +1,33 @@
+من تسک ساده ای دارم می خوام با استفاده از 
+OPENAI SDK
+یه کد ساده بنویسی که :
+من یک فایل
+CSV دارم
+که 2 ستون داره
+clean_jira_desription, HUMALSURE
+می خوام یک فایل CSV
+بخونه و یک لیبل
+به هر تکسی بده 
+0 --> VARY VAGEE
+1 --> UNDERSTANDABLE
+2 --> VERY CLEAR
+
+این متن ها 
+متن های JIRA DESRIPTION
+هستند
+متن باید طبق اصول 
+aGILE
+ساده و PLAIN باشد|
+مثلا این متن
+Complete the NFR Cyber Security as part of ITSA process
+صفر است.
+
+مثلا این متن
+As a BigQuery,
+I want to prepare BQ code for deploying Table and_enriched_VIEW to the Work_Prod environment, So that the database structures are production-ready and meet all operational requirements.
+
+
+یه چیزی فقط به PLAINESS کار داریم
+به سهولت خواندن
+مهم نیست متن دارایWHO باشد یا 
+AC
