@@ -22,18 +22,25 @@ class PlainnessScore(BaseModel):
 # Prompt
 # ----------------------------
 SYSTEM_PROMPT = """
-You evaluate how plain and clear a Jira description is.
+You evaluate ONLY how easy a Jira description is to read.
 
-Focus ONLY on language clarity.
+Ignore:
+- Agile format
+- acceptance criteria
+- completeness
 
-Do NOT evaluate Agile completeness.
+Focus strictly on language clarity.
 
-Score:
-0 = Very vague or unclear
-1 = Understandable but not very clear
-2 = Very clear and easy to read
+Label definitions:
 
-Return only the label.
+0 = vague, confusing, or too technical
+1 = understandable but not very clear
+2 = very clear plain English
+
+Rules:
+- prefer 1 if uncertain
+- short sentences are clearer
+- avoid guessing hidden meaning
 """
 
 def classify(text: str):
