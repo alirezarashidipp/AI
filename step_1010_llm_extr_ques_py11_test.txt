@@ -1,0 +1,104 @@
+import json
+import pytest
+
+from deepeval import assert_test
+from deepeval.test_case import LLMTestCase
+from deepeval.metrics import JsonCorrectnessMetric
+
+from step_1010_llm_extr_ques_py11 import extract_jira_metadata
+
+
+# ------------------------------
+# Test Dataset
+# ------------------------------
+
+TEST_CASES = [
+
+    {
+        "name": "migration_task",
+        "input": "We need to migrate Redis to AWS ElastiCache so that the system becomes more reliable.",
+        "expect_what": True
+    },
+
+    {
+        "name": "missing_intent",
+        "input": "Database update needed.",
+        "expect_what": False
+    },
+
+    {
+        "name": "clear_user_story",
+        "input": "As a platform engineer I want to deploy Redis to AWS so that scaling improves.",
+        "expect_what": True
+    },
+
+    {
+        "name": "very_vague_ticket",
+        "input": "Fix system.",
+        "expect_what": False
+    }
+
+]
+
+
+# ------------------------------
+# Core Evaluation
+# ------------------------------
+
+@pytest.mark.parametrize("case", TEST_CASES)
+def test_jira_extraction(case):
+
+    result = extract_jira_metadata(case["input"])
+
+    assert result is not None
+
+    output = result.model_dump()
+
+    # Basic schema validation
+    metric = JsonCorrectnessMetric()
+
+    test_case = LLMTestCase(
+        input=case["input"],
+        actual_output=json.dumps(output)
+    )
+
+    assert_test(test_case, [metric])
+
+    # Logic checks
+    assert output["what"]["identified"] == case["expect_what"]
+
+    # Rule from your prompt
+    if output["what"]["identified"]:
+        assert len(output["grooming_questions"]) == 2
+    else:
+        assert output["grooming_questions"] == []
+
+
+# ------------------------------
+# Edge Case Test
+# ------------------------------
+
+def test_large_input():
+
+    text = "test " * 20000
+
+    result = extract_jira_metadata(text)
+
+    assert result is None
+
+
+# ------------------------------
+# Determinism Check
+# ------------------------------
+
+def test_repeatability():
+
+    text = "We need to migrate Redis to AWS."
+
+    r1 = extract_jira_metadata(text)
+    r2 = extract_jira_metadata(text)
+
+    assert r1 is not None
+    assert r2 is not None
+
+    assert r1.what.identified == r2.what.identified
