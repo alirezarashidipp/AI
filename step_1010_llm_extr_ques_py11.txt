@@ -29,8 +29,10 @@ def get_token() -> str:
 # 1. Strict Schema Definitions (Aligned to Target Output)
 # ---------------------------------------------------------
 class Who(BaseModel):
-    identified: bool = Field(description="True if a specific person, role, or team is mentioned.")
-    evidence: str = Field(description="The exact phrase found. Return 'nan' if missing.")
+    identified: bool = Field(description="True ONLY if a specific human actor, named individual, "
+            "technical role (e.g., SRE, Data Engineer), or team is explicitly mentioned.")
+    evidence: str = Field(description="Exact verbatim substring from the input identifying the actor. "
+            "Must be null if identified is False."")
 
 class What(BaseModel):
     identified: bool = Field(description="True if an action or intent is clearly defined.")
