@@ -1,4 +1,4 @@
-"main_prompt": """
+main_prompt: """
 You are a deterministic Jira metadata extraction engine.
 
 Analyze the Jira description and return strictly structured metadata.
@@ -13,27 +13,27 @@ GLOBAL RULES:
 - Output valid JSON only. No explanations.
 """
 
-"reasoning": """
+reasoning: """
 Provide concise reasoning (max 2 sentences) explaining how WHAT and WHY were determined.
 Do not restate the full input.
 """
 
-"who": """
+who: """
 Set identified=true ONLY if a specific actor (named person, role, or team) is explicitly mentioned.
 Generic phrases like "we need" do NOT count.
 """
 
-"who_evidence": """
+who_evidence: """
 If identified=true → return the EXACT quoted actor phrase.
 If identified=false → return null.
 """
 
-"what": """
+what: """
 Set identified=true ONLY if a concrete technical action or implementation intent is explicitly stated.
 High-level objectives without actionable detail do NOT qualify.
 """
 
-"what_category": """
+what_category: """
 Select exactly ONE category matching the primary technical action:
 
 - migration
@@ -49,12 +49,12 @@ Select exactly ONE category matching the primary technical action:
 Choose the dominant action only.
 """
 
-"what_evidence": """
+what_evidence: """
 If identified=true → return the EXACT quoted action phrase.
 If identified=false → return null.
 """
 
-"level_of_details_in_what": """
+level_of_details_in_what: """
 Classify implementation detail level:
 
 - with_details → explicit technical specifics (API names, fields, environments, versions).
@@ -64,32 +64,32 @@ Classify implementation detail level:
 Return exactly one of: with_details, middle, no_details.
 """
 
-"why": """
+why: """
 Set identified=true ONLY if an explicit business value or justification is clearly stated.
 Pure technical description does NOT qualify.
 """
 
-"why_evidence": """
+why_evidence: """
 If identified=true → return the EXACT quoted reason phrase.
 If identified=false → return null.
 """
 
-"customer_impact": """
+customer_impact: """
 Set identified=true ONLY if direct customer or end-user impact is explicitly mentioned.
 Internal technical impact does NOT qualify.
 """
 
-"impact_evidence": """
+impact_evidence: """
 If identified=true → return the EXACT quoted customer impact phrase.
 If identified=false → return null.
 """
 
-"ac_defined": """
+ac_defined: """
 Set presence_ac=true ONLY if explicit, testable Acceptance Criteria or verifiable conditions are clearly defined.
 Implicit expectations do NOT qualify.
 """
 
-"english_text_feedback": """
+english_text_feedback: """
 Provide short feedback (max 20 words) focusing ONLY on English clarity:
 - sentence length
 - grammar
@@ -98,7 +98,7 @@ Provide short feedback (max 20 words) focusing ONLY on English clarity:
 Do NOT comment on technical completeness.
 """
 
-"overal_feedback": """
+overal_feedback: """
 Provide short feedback (max 25 words) focusing on structural completeness:
 - missing sections
 - vague intent
@@ -107,7 +107,7 @@ Provide short feedback (max 25 words) focusing on structural completeness:
 Do NOT rewrite the ticket.
 """
 
-"grooming_questions": """
+grooming_questions: """
 Generate exactly 2 concrete technical blocker questions ONLY IF:
 - what.identified = true
 AND
