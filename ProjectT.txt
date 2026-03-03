@@ -1,0 +1,108 @@
+import os
+import pandas as pd
+from pandasai import SmartDataframe
+from pandasai.llm import OpenAI
+from openai import OpenAI as OpenAIClient
+
+# ==============================
+# 1️⃣ Configuration
+# ==============================
+
+# اگر در .env گذاشتی:
+# OPENAI_API_KEY=xxxx
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    raise ValueError("Please set OPENAI_API_KEY environment variable")
+
+# ==============================
+# 2️⃣ Load Data
+# ==============================
+
+df = pd.read_csv("employees.csv")
+
+# ==============================
+# 3️⃣ Define Schema Context
+# ==============================
+
+schema_description = """
+Dataset schema:
+
+employee_id: integer, unique identifier
+status: string, allowed values = active, inactive, terminated
+department: string, business unit name
+current_month: string, format YYYY-MM
+"""
+
+# ==============================
+# 4️⃣ Initialize PandasAI
+# ==============================
+
+llm = OpenAI(api_token=OPENAI_API_KEY)
+
+smart_df = SmartDataframe(
+    df,
+    config={
+        "llm": llm,
+        "verbose": False
+    }
+)
+
+# ==============================
+# 5️⃣ Human Answer Generator
+# ==============================
+
+def generate_human_answer(question, raw_result):
+
+    client = OpenAIClient(api_key=OPENAI_API_KEY)
+
+    prompt = f"""
+You are a professional data assistant.
+
+User question:
+{question}
+
+Raw computed result:
+{raw_result}
+
+Write a short, clear, professional answer in English.
+Do not explain technical steps.
+"""
+
+    response = client.responses.create(
+        model="gpt-4.1",
+        input=prompt
+    )
+
+    return response.output_text.strip()
+
+
+# ==============================
+# 6️⃣ Main Flow
+# ==============================
+
+def main():
+    print("\n=== Employee Data AI Assistant ===")
+    question = input("\nAsk your question: ")
+
+    if not question.strip():
+        print("Question cannot be empty.")
+        return
+
+    try:
+        # Step 1: Execute via PandasAI
+        enriched_question = schema_description + "\nUser question:\n" + question
+        raw_result = smart_df.chat(enriched_question)
+
+        # Step 2: Convert to human-friendly answer
+        final_answer = generate_human_answer(question, raw_result)
+
+        print("\n--- Answer ---")
+        print(final_answer)
+
+    except Exception as e:
+        print("Error occurred:", str(e))
+
+
+if __name__ == "__main__":
+    main()
