@@ -40,12 +40,11 @@ Select exactly ONE category matching the primary technical action:
 - debug
 - enhance
 - refactor
-- documentation
 - testing
 - deployment
 - research
 - other
-
+- documentation
 Choose the dominant action only.
 """
 
