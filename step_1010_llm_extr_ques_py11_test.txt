@@ -7,7 +7,7 @@ from deepeval.test_case import LLMTestCase
 from step_1010_llm_extr_ques_py11_2 import extract_jira_metadata
 
 
-def test_metadata_extraction():
+def test_jira_metadata_extraction():
 
     jira_text = """
     As a Tfx team,
@@ -17,29 +17,42 @@ def test_metadata_extraction():
 
     result = extract_jira_metadata(jira_text)
 
-    # اگر خروجی dict نیست
+    # اگر خروجی dict نباشد
     if not isinstance(result, dict):
         result = json.loads(result)
 
+    output_json = json.dumps(result, indent=2)
+
     metric = GEval(
-        name="Jira Metadata Extraction Quality",
+        name="Jira Agile Metadata Extraction",
         criteria="""
-        Evaluate whether the model correctly extracts structured Agile metadata
-        from a Jira ticket description.
+        Evaluate whether the model correctly extracts Agile metadata from the Jira ticket.
 
-        The evaluation should check:
+        The output must correctly identify:
 
-        1. WHO → correct identification of actor/team
-        2. WHAT → correct technical implementation intent
-        3. WHY → correct business value or motivation
-        4. AC presence → whether acceptance criteria are detected
+        WHO:
+        - the actor or team performing the action.
+
+        WHAT:
+        - the technical implementation action.
+
+        WHY:
+        - the business value or purpose.
+
+        CUSTOMER IMPACT:
+        - whether user/customer impact is mentioned.
+
+        ACCEPTANCE CRITERIA:
+        - whether AC is detected.
+
+        The extracted evidence must correspond to the relevant concept.
         """,
         evaluation_params=["input", "actual_output"]
     )
 
     test_case = LLMTestCase(
         input=jira_text,
-        actual_output=result
+        actual_output=output_json
     )
 
     assert_test(test_case, [metric])
