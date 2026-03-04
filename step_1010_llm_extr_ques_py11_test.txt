@@ -1,4 +1,8 @@
 import uuid
+import ssl
+import httpx
+import truststore
+import openai
 import json
 
 from deepeval import assert_test
@@ -6,14 +10,50 @@ from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase
 from deepeval.models.base_model import DeepEvalBaseLLM
 
-from llm_client import get_enterprise_openai_client
 from token_jwt import get_token
 from step_1010_llm_extr_ques_py11_2 import extract_jira_metadata
 
 
-# -----------------------------
-# Custom Judge Model
-# -----------------------------
+# ---------------------------------------------------------
+# 1. Enterprise OpenAI Client
+# ---------------------------------------------------------
+
+BASE_URL = "Link"
+USER_ID = "UC1939194"
+MODEL = "GPT-4.1"
+
+
+def get_enterprise_openai_client():
+
+    jwt = get_token()
+
+    ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+    httpx_client = httpx.Client(
+        http2=True,
+        verify=ctx
+    )
+
+    default_headers = {
+        "Content-Type": "application/json",
+        "x-correlation-id": str(uuid.uuid4()),
+        "x-usersession-id": str(uuid.uuid4())
+    }
+
+    client = openai.OpenAI(
+        api_key="test",
+        http_client=httpx_client,
+        base_url=BASE_URL,
+        default_headers=default_headers
+    )
+
+    return client, jwt
+
+
+# ---------------------------------------------------------
+# 2. DeepEval Judge Model
+# ---------------------------------------------------------
+
 class EnterpriseJudgeLLM(DeepEvalBaseLLM):
 
     def load_model(self):
@@ -21,24 +61,22 @@ class EnterpriseJudgeLLM(DeepEvalBaseLLM):
 
     def generate(self, prompt: str) -> str:
 
-        client = self.load_model()
+        client, jwt = self.load_model()
 
-        jwt = get_token()
-
-        headers = {
-            "X-HSBC-E2E-Trust-Token": jwt,
-            "x-correlation-id": str(uuid.uuid4()),
-            "x-usersession-id": str(uuid.uuid4())
+        extra_headers = {
+            "X-HSBC-E2E-Trust-Token": jwt
         }
 
         response = client.chat.completions.create(
-            model="gpt-4.1",
+            model=MODEL,
             messages=[
                 {"role": "system", "content": "You are an evaluation judge."},
                 {"role": "user", "content": prompt}
             ],
+            user=USER_ID,
             temperature=0,
-            extra_headers=headers
+            max_tokens=500,
+            extra_headers=extra_headers
         )
 
         return response.choices[0].message.content
@@ -50,9 +88,10 @@ class EnterpriseJudgeLLM(DeepEvalBaseLLM):
         return "enterprise-gpt-judge"
 
 
-# -----------------------------
-# DeepEval Test
-# -----------------------------
+# ---------------------------------------------------------
+# 3. DeepEval Test
+# ---------------------------------------------------------
+
 def test_jira_metadata_extraction():
 
     jira_text = """
@@ -61,49 +100,52 @@ def test_jira_metadata_extraction():
     so that we can store and manage additional data related to the project.
     """
 
+    # ---- run your extraction model
     result = extract_jira_metadata(jira_text)
 
     if result is None:
         raise ValueError("Model returned None")
 
-    # Pydantic → dict
     result_dict = result.model_dump()
-
     output_json = json.dumps(result_dict, indent=2)
 
+    print("Model Output:")
+    print(output_json)
+
+    # ---- Judge Model
     judge_model = EnterpriseJudgeLLM()
 
+    # ---- Evaluation Metric
     metric = GEval(
-        name="Jira Agile Metadata Extraction",
-        model=judge_model,
+        name="Jira Metadata Extraction Quality",
         criteria="""
-        Evaluate whether the model correctly extracts Agile metadata
-        from the Jira ticket.
-
-        Check if the following are correctly extracted:
-
-        - WHO (actor or team)
-        - WHAT (technical implementation)
-        - WHY (business value)
-        - CUSTOMER IMPACT
-        - ACCEPTANCE CRITERIA
-
-        Evidence must correspond to the correct concept.
-        """,
-        evaluation_params=["input", "actual_output"],
-        threshold=0.7
+Evaluate whether the extracted Jira metadata correctly identifies
+WHO (actor), WHAT (requested work), WHY (business value),
+and Acceptance Criteria if present.
+""",
+        evaluation_steps=[
+            "Check if WHO is correctly identified from the ticket",
+            "Check if WHAT describes the requested implementation",
+            "Check if WHY explains the business value",
+            "Check if acceptance criteria are correctly extracted"
+        ],
+        model=judge_model
     )
 
+    # ---- Test Case
     test_case = LLMTestCase(
         input=jira_text,
         actual_output=output_json
     )
 
+    # ---- Run DeepEval
     assert_test(test_case, [metric])
 
 
-# -----------------------------
-# Run directly
-# -----------------------------
+# ---------------------------------------------------------
+# 4. Run Test
+# ---------------------------------------------------------
+
 if __name__ == "__main__":
+
     test_jira_metadata_extraction()
