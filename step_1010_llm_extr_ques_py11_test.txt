@@ -1,12 +1,58 @@
+import uuid
 import json
 
 from deepeval import assert_test
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase
+from deepeval.models.base_model import DeepEvalBaseLLM
 
+from llm_client import get_enterprise_openai_client
+from token_jwt import get_token
 from step_1010_llm_extr_ques_py11_2 import extract_jira_metadata
 
 
+# -----------------------------
+# Custom Judge Model
+# -----------------------------
+class EnterpriseJudgeLLM(DeepEvalBaseLLM):
+
+    def load_model(self):
+        return get_enterprise_openai_client()
+
+    def generate(self, prompt: str) -> str:
+
+        client = self.load_model()
+
+        jwt = get_token()
+
+        headers = {
+            "X-HSBC-E2E-Trust-Token": jwt,
+            "x-correlation-id": str(uuid.uuid4()),
+            "x-usersession-id": str(uuid.uuid4())
+        }
+
+        response = client.chat.completions.create(
+            model="gpt-4.1",
+            messages=[
+                {"role": "system", "content": "You are an evaluation judge."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0,
+            extra_headers=headers
+        )
+
+        return response.choices[0].message.content
+
+    async def a_generate(self, prompt: str) -> str:
+        return self.generate(prompt)
+
+    def get_model_name(self):
+        return "enterprise-gpt-judge"
+
+
+# -----------------------------
+# DeepEval Test
+# -----------------------------
 def test_jira_metadata_extraction():
 
     jira_text = """
@@ -17,37 +63,35 @@ def test_jira_metadata_extraction():
 
     result = extract_jira_metadata(jira_text)
 
-    # اگر خروجی dict نباشد
-    if not isinstance(result, dict):
-        result = json.loads(result)
+    if result is None:
+        raise ValueError("Model returned None")
 
-    output_json = json.dumps(result, indent=2)
+    # Pydantic → dict
+    result_dict = result.model_dump()
+
+    output_json = json.dumps(result_dict, indent=2)
+
+    judge_model = EnterpriseJudgeLLM()
 
     metric = GEval(
         name="Jira Agile Metadata Extraction",
+        model=judge_model,
         criteria="""
-        Evaluate whether the model correctly extracts Agile metadata from the Jira ticket.
+        Evaluate whether the model correctly extracts Agile metadata
+        from the Jira ticket.
 
-        The output must correctly identify:
+        Check if the following are correctly extracted:
 
-        WHO:
-        - the actor or team performing the action.
+        - WHO (actor or team)
+        - WHAT (technical implementation)
+        - WHY (business value)
+        - CUSTOMER IMPACT
+        - ACCEPTANCE CRITERIA
 
-        WHAT:
-        - the technical implementation action.
-
-        WHY:
-        - the business value or purpose.
-
-        CUSTOMER IMPACT:
-        - whether user/customer impact is mentioned.
-
-        ACCEPTANCE CRITERIA:
-        - whether AC is detected.
-
-        The extracted evidence must correspond to the relevant concept.
+        Evidence must correspond to the correct concept.
         """,
-        evaluation_params=["input", "actual_output"]
+        evaluation_params=["input", "actual_output"],
+        threshold=0.7
     )
 
     test_case = LLMTestCase(
@@ -58,7 +102,8 @@ def test_jira_metadata_extraction():
     assert_test(test_case, [metric])
 
 
-
-
+# -----------------------------
+# Run directly
+# -----------------------------
 if __name__ == "__main__":
     test_jira_metadata_extraction()
