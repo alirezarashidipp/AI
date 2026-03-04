@@ -6,7 +6,7 @@ import openai
 import json
 
 from deepeval import assert_test
-from deepeval.metrics import GEval
+from deepeval.metrics import GEval, LLMTestCaseParams
 from deepeval.test_case import LLMTestCase
 from deepeval.models.base_model import DeepEvalBaseLLM
 
@@ -121,13 +121,17 @@ def test_jira_metadata_extraction():
         criteria="""
 Evaluate whether the extracted Jira metadata correctly identifies
 WHO (actor), WHAT (requested work), WHY (business value),
-and Acceptance Criteria if present.
+and acceptance criteria if present.
 """,
         evaluation_steps=[
             "Check if WHO is correctly identified from the ticket",
-            "Check if WHAT describes the requested implementation",
+            "Check if WHAT describes the requested work",
             "Check if WHY explains the business value",
             "Check if acceptance criteria are correctly extracted"
+        ],
+        evaluation_params=[
+            LLMTestCaseParams.INPUT,
+            LLMTestCaseParams.ACTUAL_OUTPUT
         ],
         model=judge_model
     )
@@ -147,5 +151,4 @@ and Acceptance Criteria if present.
 # ---------------------------------------------------------
 
 if __name__ == "__main__":
-
     test_jira_metadata_extraction()
