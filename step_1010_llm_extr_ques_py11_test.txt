@@ -56,3 +56,9 @@ def test_jira_metadata_extraction():
     )
 
     assert_test(test_case, [metric])
+
+
+
+
+if __name__ == "__main__":
+    test_jira_metadata_extraction()
