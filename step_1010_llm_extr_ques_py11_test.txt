@@ -57,7 +57,8 @@ def get_enterprise_openai_client():
 class EnterpriseJudgeLLM(DeepEvalBaseLLM):
 
     def load_model(self):
-        return get_enterprise_openai_client()
+        client, jwt = get_enterprise_openai_client()
+        return client, jwt
 
     def generate(self, prompt: str) -> str:
 
@@ -79,7 +80,7 @@ class EnterpriseJudgeLLM(DeepEvalBaseLLM):
             extra_headers=extra_headers
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].message.content.strip()
 
     async def a_generate(self, prompt: str) -> str:
         return self.generate(prompt)
@@ -100,7 +101,7 @@ def test_jira_metadata_extraction():
     so that we can store and manage additional data related to the project.
     """
 
-    # ---- run your extraction model
+    # ---- run extraction model
     result = extract_jira_metadata(jira_text)
 
     if result is None:
@@ -112,22 +113,20 @@ def test_jira_metadata_extraction():
     print("Model Output:")
     print(output_json)
 
-    # ---- Judge Model
     judge_model = EnterpriseJudgeLLM()
 
-    # ---- Evaluation Metric
     metric = GEval(
         name="Jira Metadata Extraction Quality",
         criteria="""
-Evaluate whether the extracted Jira metadata correctly identifies
+Evaluate whether the extracted Jira metadata correctly identifies:
 WHO (actor), WHAT (requested work), WHY (business value),
 and acceptance criteria if present.
 """,
         evaluation_steps=[
-            "Check if WHO is correctly identified from the ticket",
+            "Check if WHO is correctly identified",
             "Check if WHAT describes the requested work",
             "Check if WHY explains the business value",
-            "Check if acceptance criteria are correctly extracted"
+            "Check if acceptance criteria are extracted when present"
         ],
         evaluation_params=[
             LLMTestCaseParams.INPUT,
@@ -136,13 +135,11 @@ and acceptance criteria if present.
         model=judge_model
     )
 
-    # ---- Test Case
     test_case = LLMTestCase(
         input=jira_text,
         actual_output=output_json
     )
 
-    # ---- Run DeepEval
     assert_test(test_case, [metric])
 
 
