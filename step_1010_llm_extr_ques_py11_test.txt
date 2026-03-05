@@ -1,3 +1,19 @@
+# ---------------------------------------------------------
+# Pydantic v2 compatibility patch for libraries using root_validator
+# ---------------------------------------------------------
+
+import pydantic
+
+if pydantic.VERSION.startswith("2"):
+    from pydantic import root_validator as _root_validator
+
+    def root_validator(*args, **kwargs):
+        if "skip_on_failure" not in kwargs:
+            kwargs["skip_on_failure"] = True
+        return _root_validator(*args, **kwargs)
+
+    pydantic.root_validator = root_validator
+
 import uuid
 import ssl
 import httpx
