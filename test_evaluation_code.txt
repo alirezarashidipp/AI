@@ -1,0 +1,67 @@
+import json
+from rapidfuzz import fuzz
+
+
+# ------------------------------
+# Mock model function
+# Replace with your real model
+# ------------------------------
+def extract_jira_metadata(description: str):
+
+    # example mock output
+    return {
+        "who": {"evidence": "As a Tfx team"},
+        "what": {"intent_evidence": "add a new column in the Project class"},
+        "why": {"value_evidence": "store delivery status"}
+    }
+
+
+# ------------------------------
+# Similarity function
+# ------------------------------
+def similarity(pred, gold):
+    if pred is None or gold is None:
+        return 0
+    return fuzz.token_set_ratio(pred.lower(), gold.lower())
+
+
+# ------------------------------
+# Load dataset
+# ------------------------------
+with open("golden_evidence_dataset.json", "r") as f:
+    dataset = json.load(f)
+
+
+results = []
+
+for item in dataset:
+
+    description = item["description"]
+    golden = item["golden"]
+
+    pred = extract_jira_metadata(description)
+
+    who_score = similarity(pred["who"]["evidence"], golden["who_evidence"])
+    intent_score = similarity(pred["what"]["intent_evidence"], golden["intent_evidence"])
+    value_score = similarity(pred["why"]["value_evidence"], golden["value_evidence"])
+
+    results.append({
+        "ticket_id": item["ticket_id"],
+        "who_score": who_score,
+        "intent_score": intent_score,
+        "value_score": value_score
+    })
+
+
+# ------------------------------
+# Report
+# ------------------------------
+avg_who = sum(r["who_score"] for r in results) / len(results)
+avg_intent = sum(r["intent_score"] for r in results) / len(results)
+avg_value = sum(r["value_score"] for r in results) / len(results)
+
+print("Evaluation Results")
+print("-------------------")
+print(f"WHO Evidence Score: {avg_who:.2f}")
+print(f"Intent Evidence Score: {avg_intent:.2f}")
+print(f"Value Evidence Score: {avg_value:.2f}")
