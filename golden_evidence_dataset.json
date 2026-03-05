@@ -1,0 +1,29 @@
+[
+  {
+    "ticket_id": "TICKET_001",
+    "description": "As a Tfx team we need to add a new column in the Project class to store delivery status so that we can manage additional project metadata.",
+    "golden": {
+      "who_evidence": "As a Tfx team",
+      "intent_evidence": "add a new column in the Project class",
+      "value_evidence": "store delivery status so that we can manage additional project metadata"
+    }
+  },
+  {
+    "ticket_id": "TICKET_002",
+    "description": "As a data engineer I want to update the ETL pipeline to support incremental loads so that processing time is reduced.",
+    "golden": {
+      "who_evidence": "As a data engineer",
+      "intent_evidence": "update the ETL pipeline to support incremental loads",
+      "value_evidence": "processing time is reduced"
+    }
+  },
+  {
+    "ticket_id": "TICKET_003",
+    "description": "As a platform team we need to add monitoring alerts in Grafana so that failures are detected earlier.",
+    "golden": {
+      "who_evidence": "As a platform team",
+      "intent_evidence": "add monitoring alerts in Grafana",
+      "value_evidence": "failures are detected earlier"
+    }
+  }
+]
